@@ -1,7 +1,6 @@
 use statrs::statistics::Statistics;
 use statrs::distribution::{StudentsT, ContinuousCDF};
 use crate::statistics::StatisticsExt;
-use std::f64;
 
 /// Implements [Student's t-test](https://en.wikipedia.org/wiki/Student%27s_t-test).
 #[derive(Debug, Copy, Clone, PartialEq)]
