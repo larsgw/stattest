@@ -176,6 +176,22 @@ mod tests {
     }
 
     #[test]
+    fn shapiro_wilk_1() {
+        let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
+        let test = super::ShapiroWilkTest::new(&x).unwrap();
+        assert_eq!(test.estimate, 0.9923657326481632);
+        assert_eq!(test.p_value, 0.9999699312420669);
+    }
+
+    #[test]
+    fn shapiro_wilk_2() {
+        let x = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
+        let test = super::ShapiroWilkTest::new(&x).unwrap();
+        assert_eq!(test.estimate, 0.9980061683004456);
+        assert_eq!(test.p_value, 0.9999411393249124);
+    }
+
+    #[test]
     fn large_range() {
         let x = vec!(0.139E100, 0.157E100, 0.175E100, 0.256E100, 0.344E100, 0.413E100, 0.503E100, 0.577E100, 0.614E100, 0.655E100, 0.954E100, 1.392E100, 1.557E100, 1.648E100, 1.690E100, 1.994E100, 2.174E100, 2.206E100, 3.245E100, 3.510E100, 3.571E100, 4.354E100, 4.980E100, 6.084E100, 8.351E100);
         let test = super::ShapiroWilkTest::new(&x).unwrap();
