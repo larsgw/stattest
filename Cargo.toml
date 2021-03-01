@@ -4,6 +4,10 @@ version = "0.0.0"
 authors = ["Lars Willighagen <lars.willighagen@gmail.com>"]
 edition = "2018"
 
+[lib]
+doctest = false
+
 [dependencies]
 # polars = "0.12.1"
 statrs = { git = "https://github.com/larsgw/statrs", branch = "patch-1" }
+rand = "0.7.3"
