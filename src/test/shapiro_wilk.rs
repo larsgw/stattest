@@ -49,7 +49,9 @@ pub enum ShapiroWilkError {
     /// `IFAULT = 1` (n < 3)
     TooFew,
     /// `IFAULT = 6` (the data have zero range)
-    NoDifference
+    NoDifference,
+    /// Should not happen
+    CannotMakeDistribution
 }
 
 static SMALL: f64 = 1E-19; // smaller for f64?
@@ -67,11 +69,11 @@ impl ShapiroWilkTest {
     pub fn new (x: &Vec<f64>) -> Result<ShapiroWilkTest, ShapiroWilkError> {
         let n = x.len();
         let mut sorted = x.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal));
 
         let range = sorted.last().unwrap() - sorted[0];
 
-        if range.partial_cmp(&SMALL).unwrap() == cmp::Ordering::Less {
+        if range.lt(&SMALL) {
             return Err(ShapiroWilkError::NoDifference);
         } else if n < 3 {
             return Err(ShapiroWilkError::TooFew);
@@ -96,7 +98,11 @@ impl ShapiroWilkTest {
         let p_value = if n == 3 {
             FRAC_6_PI * (estimate.sqrt().asin() - ASIN_SQRT_FRAC_3_4).max(0.0)
         } else {
-            1.0 - ShapiroWilk::new(n).unwrap().cdf(if n <= 11 {
+            let distribution = match ShapiroWilk::new(n) {
+                Ok(distribution) => distribution,
+                Err(_) => return Err(ShapiroWilkError::CannotMakeDistribution)
+            };
+            1.0 - distribution.cdf(if n <= 11 {
                 let gamma = polynomial(n as f64, &G);
                 -(gamma - complement.ln()).ln()
             } else {
