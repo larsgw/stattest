@@ -8,15 +8,15 @@ where
     T: IntoIterator + Clone,
     T::Item: Borrow<f64>,
 {
-    fn n (self) -> f64 {
+    fn n(self) -> f64 {
         self.into_iter().count() as f64
     }
 
-    fn df (self) -> f64 {
+    fn df(self) -> f64 {
         self.n() - 1.0
     }
 
-    fn pooled_variance (self, other: Self) -> f64 {
+    fn pooled_variance(self, other: Self) -> f64 {
         let df_x = self.clone().df();
         let df_y = other.clone().df();
         let var_x = self.clone().variance();
@@ -25,11 +25,11 @@ where
         (df_x * var_x + df_y * var_y) / (df_x + df_y)
     }
 
-    fn pooled_std_dev (self, other: Self) -> f64 {
+    fn pooled_std_dev(self, other: Self) -> f64 {
         self.pooled_variance(other).sqrt()
     }
 
-    fn variance_ratio (self, other: Self) -> f64 {
+    fn variance_ratio(self, other: Self) -> f64 {
         self.variance() / other.variance()
     }
 }
