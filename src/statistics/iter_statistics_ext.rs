@@ -19,8 +19,8 @@ where
     fn pooled_variance(self, other: Self) -> f64 {
         let df_x = self.clone().df();
         let df_y = other.clone().df();
-        let var_x = self.clone().variance();
-        let var_y = other.clone().variance();
+        let var_x = self.variance();
+        let var_y = other.variance();
 
         (df_x * var_x + df_y * var_y) / (df_x + df_y)
     }

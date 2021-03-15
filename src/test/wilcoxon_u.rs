@@ -5,6 +5,7 @@ use crate::statistics::*;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct WilcoxonUTest {
     estimate: (f64, f64),
+    effect_size: f64,
     p_value: f64
 }
 
@@ -19,14 +20,17 @@ impl WilcoxonUTest {
         let u = (n_x * (n_x + 1.0)) / 2.0 - ranks[0..x.len()].iter().sum::<f64>();
         let u_x = n_xy + u;
         let u_y = -u;
+        let small_u = if u < 0.0 { u_x } else { u_y };
 
         let m = n_xy / 2.0;
         let s = ((n_xy * (n_x + n_y + 1.0 - tie_correction)) / 12.0).sqrt();
 
         let normal = Normal::new(m, s)?;
-        let p_value = 2.0 * normal.cdf(if u < 0.0 { u_x } else { u_y });
+        let p_value = 2.0 * normal.cdf(small_u);
+        let effect_size = 1.0 - (2.0 * small_u) / n_xy;
 
         Ok(WilcoxonUTest {
+            effect_size,
             estimate: (u_x, u_y),
             p_value: p_value
         })
@@ -40,6 +44,8 @@ mod tests {
         let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
         let y = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
         let test = super::WilcoxonUTest::new(&x, &y).unwrap();
+        assert_eq!(test.estimate, (21.5, 62.5));
+        assert_eq!(test.effect_size, 0.48809523809523814);
         assert_eq!(test.p_value, 0.08303763193135497);
     }
 }
