@@ -8,8 +8,8 @@ This crate provides statistical tests and relevant utilities.
 
 Currently a number of tests are implemented for comparing the means of two
 independent samples, and for checking assumptions regarding the former tests.
-However, these tests are all independent two-sample tests that do not yet
-support specifying alternative hypotheses.
+However, these tests are all two-sample tests that do not yet support specifying
+alternative hypotheses.
 
 ### Comparison of independent means
 
@@ -21,8 +21,18 @@ support specifying alternative hypotheses.
     `stattest::test::WelchsTTest`  
     *Assumptions:* normality
 
-  - **Wilcoxon rank-sum test**  
-    `stattest::test::WilcoxonUTest`  
+  - **Mann-Whitney U-test/Wilcoxon rank-sum test**  
+    `stattest::test::MannWhitneyUTest`  
+    *Assumptions:* –
+
+### Comparison of paired observations
+
+  - **Student's t-test**  
+    `stattest::test::StudentsTTest`  
+    *Assumptions:* normality, homogeneity of variances  
+
+  - **Wilcoxon signed rank test**  
+    `stattest::test::WilcoxonWTest`  
     *Assumptions:* –
 
 ### Assumption tests

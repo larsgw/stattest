@@ -32,7 +32,7 @@ impl SignedRank {
     /// ```
     /// use stattest::distribution::SignedRank;
     ///
-    /// let result = SignedRank::new(25);
+    /// let result = SignedRank::new(25, 25);
     /// assert!(result.is_ok());
     /// ```
     pub fn new(n: usize, non_zero: usize) -> Result<SignedRank> {
@@ -51,7 +51,7 @@ impl SignedRank {
     /// ```
     /// use stattest::distribution::SignedRank;
     ///
-    /// let result = SignedRank::new(25);
+    /// let result = SignedRank::approximate(25, 25);
     /// assert!(result.is_ok());
     /// ```
     pub fn approximate(n: usize, non_zero: usize) -> Result<SignedRank> {
@@ -75,7 +75,7 @@ impl SignedRank {
     /// ```
     /// use stattest::distribution::SignedRank;
     ///
-    /// let result = SignedRank::new(25);
+    /// let result = SignedRank::exact(25);
     /// assert!(result.is_ok());
     /// ```
     pub fn exact(n: usize) -> Result<SignedRank> {
