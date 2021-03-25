@@ -62,16 +62,6 @@ impl ShapiroWilk {
     pub fn n(&self) -> usize {
         self.n
     }
-
-    /// Return the approximated mean of this distribution.
-    pub fn mean(&self) -> f64 {
-        self.mean
-    }
-
-    /// Return the approximated standard deviation of this distribution.
-    pub fn std_dev(&self) -> f64 {
-        self.std_dev
-    }
 }
 
 impl ::rand::distributions::Distribution<f64> for ShapiroWilk {

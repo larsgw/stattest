@@ -18,7 +18,7 @@ pub struct WelchsTTest  {
 
 impl WelchsTTest  {
     /// Run Welch's two-sample t-test on samples `x` and `y`.
-    pub fn new (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<WelchsTTest > {
+    pub fn independent (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<WelchsTTest > {
         let var_x = x.variance();
         let var_y = y.variance();
         let var_x_n = var_x / x.n();
@@ -52,7 +52,7 @@ mod tests {
     fn students_t() {
         let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
         let y = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
-        let test = super::WelchsTTest ::new(&x, &y).unwrap();
+        let test = super::WelchsTTest::independent(&x, &y).unwrap();
         assert_eq!(test.df, 13.081702113268564);
         assert_eq!(test.estimate, 1.9107001042454415);
         assert_eq!(test.effect_size, 0.904358069450997);
@@ -63,7 +63,7 @@ mod tests {
     fn reverse() {
         let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
         let y = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
-        let test = super::WelchsTTest ::new(&y, &x).unwrap();
+        let test = super::WelchsTTest::independent(&y, &x).unwrap();
         assert_eq!(test.df, 13.081702113268564);
         assert_eq!(test.estimate, -1.9107001042454415);
         assert_eq!(test.effect_size, 0.904358069450997);
