@@ -19,7 +19,7 @@ pub struct SignedRank {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum Approximation {
-    Normal(Normal, f64),
+    Normal(Normal),
     Exact
 }
 
@@ -35,9 +35,9 @@ impl SignedRank {
     /// let result = SignedRank::new(25, 25);
     /// assert!(result.is_ok());
     /// ```
-    pub fn new(n: usize, non_zero: usize) -> Result<SignedRank> {
-        if non_zero >= 20 {
-            SignedRank::approximate(n, non_zero)
+    pub fn new(n: usize, zeroes: usize, tie_correction: usize) -> Result<SignedRank> {
+        if zeroes > 0 || tie_correction > 0 || (n - zeroes) >= 20 {
+            SignedRank::approximate(n - zeroes, tie_correction)
         } else {
             SignedRank::exact(n)
         }
@@ -54,17 +54,14 @@ impl SignedRank {
     /// let result = SignedRank::approximate(25, 25);
     /// assert!(result.is_ok());
     /// ```
-    pub fn approximate(n: usize, non_zero: usize) -> Result<SignedRank> {
-        let mean = (non_zero * (non_zero + 1)) as f64 / 4.0;
-        let var = mean * (2 * non_zero + 1) as f64 / 6.0;
+    pub fn approximate(n: usize, tie_correction: usize) -> Result<SignedRank> {
+        let mean = (n * (n + 1)) as f64 / 4.0;
+        let var = mean * (2 * n + 1) as f64 / 6.0 - tie_correction as f64 / 48.0;
         let normal = Normal::new(mean, var.sqrt())?;
-
-        let rank_sum = (n * (n + 1)) as f64 / 2.0;
-        let scale = normal.cdf(rank_sum) - normal.cdf(0.0);
 
         Ok(SignedRank {
             n,
-            approximation: Approximation::Normal(normal, scale)
+            approximation: Approximation::Normal(normal)
         })
     }
 
@@ -101,7 +98,7 @@ fn partitions(number: usize, parts: usize, size: usize) -> usize {
 impl ::rand::distributions::Distribution<f64> for SignedRank {
     fn sample<R: Rng + ?Sized>(&self, r: &mut R) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal, _) => ::rand::distributions::Distribution::sample(&normal, r),
+            Approximation::Normal(normal) => ::rand::distributions::Distribution::sample(&normal, r),
             Approximation::Exact => {
                 todo!();
             }
@@ -112,9 +109,9 @@ impl ::rand::distributions::Distribution<f64> for SignedRank {
 impl ContinuousCDF<f64, f64> for SignedRank {
     fn cdf(&self, x: f64) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal, scale) => 2.0 * normal.cdf(x) / scale,
+            Approximation::Normal(normal) => 2.0 * normal.cdf(x),
             Approximation::Exact => {
-                let r = x.ceil() as usize;
+                let r = x.round() as usize;
 
                 let mut sum = 1;
 
@@ -133,7 +130,7 @@ impl ContinuousCDF<f64, f64> for SignedRank {
 
     fn inverse_cdf(&self, x: f64) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.inverse_cdf(x),
+            Approximation::Normal(normal) => normal.inverse_cdf(x),
             Approximation::Exact => {
                 todo!();
             }
@@ -201,7 +198,7 @@ impl Max<f64> for SignedRank {
 impl Distribution<f64> for SignedRank {
     fn mean(&self) -> Option<f64> {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.mean(),
+            Approximation::Normal(normal) => normal.mean(),
             Approximation::Exact => {
                 todo!();
             }
@@ -209,7 +206,7 @@ impl Distribution<f64> for SignedRank {
     }
     fn variance(&self) -> Option<f64> {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.variance(),
+            Approximation::Normal(normal) => normal.variance(),
             Approximation::Exact => {
                 todo!();
             }
@@ -217,7 +214,7 @@ impl Distribution<f64> for SignedRank {
     }
     fn entropy(&self) -> Option<f64> {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.entropy(),
+            Approximation::Normal(normal) => normal.entropy(),
             Approximation::Exact => {
                 todo!();
             }
@@ -225,7 +222,7 @@ impl Distribution<f64> for SignedRank {
     }
     fn skewness(&self) -> Option<f64> {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.skewness(),
+            Approximation::Normal(normal) => normal.skewness(),
             Approximation::Exact => {
                 todo!();
             }
@@ -236,7 +233,7 @@ impl Distribution<f64> for SignedRank {
 impl Mode<Option<f64>> for SignedRank {
     fn mode(&self) -> Option<f64> {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.mode(),
+            Approximation::Normal(normal) => normal.mode(),
             Approximation::Exact => {
                 todo!();
             }
@@ -247,7 +244,7 @@ impl Mode<Option<f64>> for SignedRank {
 impl Continuous<f64, f64> for SignedRank {
     fn pdf(&self, x: f64) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.pdf(x),
+            Approximation::Normal(normal) => normal.pdf(x),
             Approximation::Exact => {
                 todo!();
             }
@@ -256,7 +253,7 @@ impl Continuous<f64, f64> for SignedRank {
 
     fn ln_pdf(&self, x: f64) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal, _) => normal.ln_pdf(x),
+            Approximation::Normal(normal) => normal.ln_pdf(x),
             Approximation::Exact => {
                 todo!();
             }
@@ -271,18 +268,18 @@ mod tests {
 
     #[test]
     fn n_20() {
-        let distribution = super::SignedRank::new(20, 20).unwrap();
+        let distribution = super::SignedRank::new(20, 0, 0).unwrap();
         assert_eq!(distribution.mean(), Some(105.0));
         assert_eq!(distribution.std_dev(), Some(26.78619047195775));
-        assert_eq!(distribution.cdf(50.0), 0.0400473452471253);
+        assert_eq!(distribution.cdf(50.0), 0.04004379807046464);
     }
 
     #[test]
     fn n_30() {
-        let distribution = super::SignedRank::new(30, 30).unwrap();
+        let distribution = super::SignedRank::new(30, 0, 0).unwrap();
         assert_eq!(distribution.mean(), Some(232.5));
         assert_eq!(distribution.std_dev(), Some(48.61841215013094));
-        assert_eq!(distribution.cdf(150.0), 0.08971799337794222);
+        assert_eq!(distribution.cdf(150.0), 0.08971783777126728);
     }
 
     #[test]
@@ -320,8 +317,16 @@ mod tests {
         let distribution = super::SignedRank::exact(8).unwrap();
         assert_eq!(distribution.cdf(4.0), 0.0546875);
         assert_eq!(distribution.cdf(3.0), 0.0390625);
-        // assert_eq!(distribution.cdf(2.5), 0.0390625);
+        assert_eq!(distribution.cdf(2.5), 0.0390625);
         assert_eq!(distribution.cdf(2.0), 0.0234375);
+    }
+
+    #[test]
+    fn n_8_ties() {
+        let distribution = super::SignedRank::new(8, 0, 7).unwrap();
+        assert_eq!(distribution.cdf(3.0), 0.03542823032427003);
+        assert_eq!(distribution.cdf(2.5), 0.029739401378297385);
+        assert_eq!(distribution.cdf(2.0), 0.024854396634115632);
     }
 
     #[test]

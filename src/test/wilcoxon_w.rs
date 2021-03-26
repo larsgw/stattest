@@ -14,22 +14,22 @@ impl WilcoxonWTest {
     /// Run Wilcoxon signed rank test on samples `x` and `y`.
     pub fn paired (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<WilcoxonWTest> {
         let d: Vec<_> = x.iter().zip(y).map(|(x, y)| (x - y).abs()).collect();
-        let (ranks, _) = (&d).ranks();
+        let (ranks, tie_correction) = (&d).ranks();
         let mut w = (0.0, 0.0);
-        let mut non_zero = 0;
+        let mut zeroes = 0;
 
         for ((x, y), rank) in x.iter().zip(y).zip(ranks) {
             if x < y {
-                non_zero += 1;
-                w.0 += rank
+                w.0 += rank;
             } else if x > y {
-                non_zero += 1;
-                w.1 += rank
+                w.1 += rank;
+            } else {
+                zeroes += 1;
             }
         }
 
         let small_w = if w.0 < w.1 { w.0 } else { w.1 };
-        let distribution = SignedRank::new(d.len(), non_zero)?;
+        let distribution = SignedRank::new(d.len(), zeroes, tie_correction)?;
         let p_value = distribution.cdf(small_w);
 
         let n = (&d).n();
@@ -52,7 +52,7 @@ mod tests {
         let y = vec!(8.5, 9.0, 6.5, 10.5, 9.0, 7.0, 6.5, 7.0);
         let test = super::WilcoxonWTest::paired(&x, &y).unwrap();
         assert_eq!(test.estimate, (33.5, 2.5));
-        // assert_eq!(test.p_value, 0.02779);
+        assert_eq!(test.p_value, 0.027785782704095215);
     }
 
     #[test]
@@ -61,6 +61,6 @@ mod tests {
         let y = vec!(151.0, 168.0, 147.0, 164.0, 166.0, 163.0, 176.0, 188.0);
         let test = super::WilcoxonWTest::paired(&x, &y).unwrap();
         assert_eq!(test.estimate, (3.0, 33.0));
-        // assert_eq!(test.p_value, 0.0390625);
+        assert_eq!(test.p_value, 0.0390625);
     }
 }

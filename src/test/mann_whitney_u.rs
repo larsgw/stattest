@@ -24,7 +24,8 @@ impl MannWhitneyUTest {
         let small_u = if u < 0.0 { u_x } else { u_y };
 
         let m = n_xy / 2.0;
-        let s = ((n_xy * (n_x + n_y + 1.0 - tie_correction)) / 12.0).sqrt();
+        let n = n_x + n_y;
+        let s = ((n_xy * (n + 1.0 - tie_correction as f64 / (n * (n - 1.0)))) / 12.0).sqrt();
 
         let normal = Normal::new(m, s)?;
         let p_value = 2.0 * normal.cdf(small_u);

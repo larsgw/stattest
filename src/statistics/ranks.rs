@@ -4,7 +4,7 @@ use std::iter::FusedIterator;
 /// For the ranking of groups of variables.
 pub trait Ranks<T> {
     /// Returns a vector of ranks.
-    fn ranks (self) -> (Vec<T>, f64);
+    fn ranks (self) -> (Vec<T>, usize);
 }
 
 impl<T> Ranks<f64> for T
@@ -12,7 +12,7 @@ where
     T: IntoIterator,
     T::Item: Borrow<f64>,
 {
-    fn ranks(self) -> (Vec<f64>, f64) {
+    fn ranks(self) -> (Vec<f64>, usize) {
         let mut observations: Vec<_> = self.into_iter().map(|x| *x.borrow()).enumerate().collect();
         observations.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -26,7 +26,7 @@ where
             ranks[old_index] = rank;
         }
 
-        (ranks, resolved_ties.get_tie_correction())
+        (ranks, resolved_ties.tie_correction())
     }
 }
 
@@ -37,7 +37,7 @@ struct ResolveTies<I, T>
     index: usize,
     left: usize,
     resolved: Option<f64>,
-    tie_correction: f64
+    tie_correction: usize
 }
 
 impl<I, T> ResolveTies<I, T>
@@ -49,14 +49,12 @@ impl<I, T> ResolveTies<I, T>
             index: 0,
             left: 0,
             resolved: None,
-            tie_correction: 0.0
+            tie_correction: 0
         }
     }
 
-    fn get_tie_correction(&self) -> f64 {
-        let t = self.tie_correction;
-        let n = self.index + self.left;
-        t / (n * (n - 1)) as f64
+    fn tie_correction(&self) -> usize {
+        self.tie_correction
     }
 }
 
@@ -76,7 +74,7 @@ impl<I, T> Iterator for ResolveTies<I, T>
                     self.resolved = Some(((1.0 + count as f64) / 2.0) + self.index as f64);
                     self.left = count - 1;
                     self.index += 1;
-                    self.tie_correction += (count as f64).powi(3) - count as f64;
+                    self.tie_correction += count.pow(3) - count;
                     self.resolved
                 },
                 None => None
