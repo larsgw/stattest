@@ -154,16 +154,16 @@ impl Distribution<f64> for SignedRank {
         match self.approximation {
             Approximation::Normal(normal) => normal.mean(),
             Approximation::Exact => {
-                (self.n * (self.n + 1)) as f64 / 4.0
+                Some((self.n * (self.n + 1)) as f64 / 4.0)
             }
         }
     }
-    
+
     fn variance(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.variance(),
             Approximation::Exact => {
-                self.n * (self.n + 1) * (2 * self.n + 1) as f64 / 24.0
+                Some((self.n * (self.n + 1) * (2 * self.n + 1)) as f64 / 24.0)
             }
         }
     }
@@ -171,29 +171,23 @@ impl Distribution<f64> for SignedRank {
     fn entropy(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.entropy(),
-            Approximation::Exact => {
-                None
-            }
+            Approximation::Exact => None
         }
     }
 
     fn skewness(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.skewness(),
-            Approximation::Exact => {
-                Some(0.0)
-            }
+            Approximation::Exact => Some(0.0)
         }
     }
 }
 
-impl Median<Option<f64>> for SignedRank {
-    fn mode(&self) -> f64 {
+impl Median<f64> for SignedRank {
+    fn median(&self) -> f64 {
         match self.approximation {
             Approximation::Normal(normal) => normal.median(),
-            Approximation::Exact => {
-                self.mean()
-            }
+            Approximation::Exact => self.mean().unwrap()
         }
     }
 }
@@ -202,9 +196,7 @@ impl Mode<Option<f64>> for SignedRank {
     fn mode(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.mode(),
-            Approximation::Exact => {
-                Some(self.mean())
-            }
+            Approximation::Exact => self.mean()
         }
     }
 }
@@ -231,9 +223,7 @@ impl Continuous<f64, f64> for SignedRank {
     fn ln_pdf(&self, x: f64) -> f64 {
         match self.approximation {
             Approximation::Normal(normal) => normal.ln_pdf(x),
-            Approximation::Exact => {
-                self.pdf(x).ln()
-            }
+            Approximation::Exact => self.pdf(x).ln()
         }
     }
 }
