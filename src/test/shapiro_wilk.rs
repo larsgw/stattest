@@ -3,7 +3,7 @@ use statrs::distribution::{Normal, ContinuousCDF};
 use statrs::function::evaluate::polynomial;
 use statrs::statistics::Statistics;
 use std::cmp;
-use std::f64::consts::{FRAC_1_SQRT_2};
+use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_3};
 
 /// Implements the [Shapiro-Wilk test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test)
 /// (Shapiro & Wilk, 1965). A simplified port of the algorithm
@@ -56,7 +56,6 @@ pub enum ShapiroWilkError {
 
 static SMALL: f64 = 1E-19; // smaller for f64?
 static FRAC_6_PI: f64 = 1.90985931710274; // 6/pi
-static ASIN_SQRT_FRAC_3_4: f64 = 1.04719755119660; // asin(sqrt(3/4))
 
 // Polynomials for estimating weights.
 static C1: [f64; 6] = [0.0, 0.221157, -0.147981, -2.07119 , 4.434685, -2.706056];
@@ -66,9 +65,9 @@ static G: [f64; 2] = [-2.273, 0.459];
 
 impl ShapiroWilkTest {
     /// Run the Shapiro-Wilk test on the sample `x`.
-    pub fn new (x: &Vec<f64>) -> Result<ShapiroWilkTest, ShapiroWilkError> {
+    pub fn new (x: &[f64]) -> Result<ShapiroWilkTest, ShapiroWilkError> {
         let n = x.len();
-        let mut sorted = x.clone();
+        let mut sorted = x.to_owned();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal));
 
         let range = sorted.last().unwrap() - sorted[0];
@@ -96,7 +95,7 @@ impl ShapiroWilkTest {
 
         let status = if n > 5000 { ShapiroWilkStatus::TooMany } else { ShapiroWilkStatus::Ok };
         let p_value = if n == 3 {
-            FRAC_6_PI * (estimate.sqrt().asin() - ASIN_SQRT_FRAC_3_4).max(0.0)
+            FRAC_6_PI * (estimate.sqrt().asin() - FRAC_PI_3).max(0.0)
         } else {
             let distribution = match ShapiroWilk::new(n) {
                 Ok(distribution) => distribution,
@@ -163,7 +162,7 @@ impl ShapiroWilkTest {
         weights[n - 1] = weight0;
 
         for i in weights_set..half {
-            weights[i] = weights[i] / scale;
+            weights[i] /= scale;
             weights[n - i - 1] = -weights[i];
         }
 

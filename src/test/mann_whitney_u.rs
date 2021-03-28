@@ -12,29 +12,29 @@ pub struct MannWhitneyUTest {
 
 impl MannWhitneyUTest {
     /// Run Mann-Whitney U test/Wilcoxon rank-sum test on samples `x` and `y`.
-    pub fn independent (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<MannWhitneyUTest> {
+    pub fn independent (x: &[f64], y: &[f64]) -> statrs::Result<MannWhitneyUTest> {
         let (ranks, tie_correction) = x.iter().chain(y).ranks();
         let n_x = x.n();
         let n_y = y.n();
         let n_xy = n_x * n_y;
 
-        let u = (n_x * (n_x + 1.0)) / 2.0 - ranks[0..x.len()].iter().sum::<f64>();
-        let u_x = n_xy + u;
-        let u_y = -u;
-        let small_u = if u < 0.0 { u_x } else { u_y };
+        let estimate = (n_x * (n_x + 1.0)) / 2.0 - ranks[0..x.len()].iter().sum::<f64>();
+        let estimate_x = n_xy + estimate;
+        let estimate_y = -estimate;
+        let estimate_small = if estimate < 0.0 { estimate_x } else { estimate_y };
 
-        let m = n_xy / 2.0;
         let n = n_x + n_y;
-        let s = ((n_xy * (n + 1.0 - tie_correction as f64 / (n * (n - 1.0)))) / 12.0).sqrt();
+        let distribution_mean = n_xy / 2.0;
+        let distribution_var = (n_xy * (n + 1.0 - tie_correction as f64 / (n * (n - 1.0)))) / 12.0;
 
-        let normal = Normal::new(m, s)?;
-        let p_value = 2.0 * normal.cdf(small_u);
-        let effect_size = 1.0 - (2.0 * small_u) / n_xy;
+        let normal = Normal::new(distribution_mean, distribution_var.sqrt())?;
+        let p_value = 2.0 * normal.cdf(estimate_small);
+        let effect_size = 1.0 - (2.0 * estimate_small) / n_xy;
 
         Ok(MannWhitneyUTest {
             effect_size,
-            estimate: (u_x, u_y),
-            p_value: p_value
+            estimate: (estimate_x, estimate_y),
+            p_value
         })
     }
 }

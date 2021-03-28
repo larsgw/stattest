@@ -12,34 +12,34 @@ pub struct WilcoxonWTest {
 
 impl WilcoxonWTest {
     /// Run Wilcoxon signed rank test on samples `x` and `y`.
-    pub fn paired (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<WilcoxonWTest> {
+    pub fn paired (x: &[f64], y: &[f64]) -> statrs::Result<WilcoxonWTest> {
         let d: Vec<_> = x.iter().zip(y).map(|(x, y)| (x - y).abs()).collect();
         let (ranks, tie_correction) = (&d).ranks();
-        let mut w = (0.0, 0.0);
+        let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
         for ((x, y), rank) in x.iter().zip(y).zip(ranks) {
             if x < y {
-                w.0 += rank;
+                estimate.0 += rank;
             } else if x > y {
-                w.1 += rank;
+                estimate.1 += rank;
             } else {
                 zeroes += 1;
             }
         }
 
-        let small_w = if w.0 < w.1 { w.0 } else { w.1 };
+        let estimate_small = if estimate.0 < estimate.1 { estimate.0 } else { estimate.1 };
         let distribution = SignedRank::new(d.len(), zeroes, tie_correction)?;
-        let p_value = distribution.cdf(small_w);
+        let p_value = distribution.cdf(estimate_small);
 
         let n = (&d).n();
         let rank_sum = n * (n + 1.0) / 2.0;
-        let effect_size = small_w / rank_sum;
+        let effect_size = estimate_small / rank_sum;
 
         Ok(WilcoxonWTest {
             effect_size,
-            estimate: w,
-            p_value: p_value
+            estimate,
+            p_value
         })
     }
 }

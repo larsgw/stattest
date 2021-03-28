@@ -11,7 +11,7 @@ pub struct FTest {
 
 impl FTest {
     /// Carry out the F-test of equality of variances on the samples `x` and `y`.
-    pub fn new (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<FTest> {
+    pub fn new (x: &[f64], y: &[f64]) -> statrs::Result<FTest> {
         let f = x.variance_ratio(y);
         let df = (x.df(), y.df());
 
@@ -22,7 +22,7 @@ impl FTest {
         Ok(FTest {
             df,
             estimate: f,
-            p_value: p_value
+            p_value
         })
     }
 }

@@ -17,29 +17,32 @@ pub struct LevenesTest {
 
 impl LevenesTest {
     /// Run Levene's test on the samples `x` and `y`.
-    pub fn new (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<LevenesTest> {
+    pub fn new (x: &[f64], y: &[f64]) -> statrs::Result<LevenesTest> {
         let n_x = x.n();
         let n_y = y.n();
-        let z_xi = x.iter().map(|xi| (xi - x.mean()).abs());
-        let z_yi = y.iter().map(|yi| (yi - y.mean()).abs());
+        let diff_x = x.iter().map(|xi| (xi - x.mean()).abs());
+        let diff_y = y.iter().map(|yi| (yi - y.mean()).abs());
 
-        let z_x = z_xi.clone().mean();
-        let z_y = z_yi.clone().mean();
-        let z = z_xi.clone().chain(z_yi.clone()).mean();
+        let mean_diff_x = diff_x.clone().mean();
+        let mean_diff_y = diff_y.clone().mean();
+        let mean_diff = Iterator::chain(diff_x.clone(), diff_y.clone()).mean();
 
-        let a: f64 = n_x * (z_x - z).powi(2) + n_y * (z_y - z).powi(2);
-        let b: f64 = z_xi.map(|zi| (zi - z_x).powi(2))
-            .chain(z_yi.map(|zi| (zi - z_y).powi(2))).sum();
+        let a: f64 = n_x * (mean_diff_x - mean_diff).powi(2) +
+                     n_y * (mean_diff_y - mean_diff).powi(2);
+        let b: f64 = Iterator::chain(
+            diff_x.map(|diff| (diff - mean_diff_x).powi(2)),
+            diff_y.map(|diff| (diff - mean_diff_y).powi(2))
+        ).sum();
 
         let df = n_x + n_y - 2.0;
-        let w = df * a / b;
+        let estimate = df * a / b;
         let distribution = FisherSnedecor::new(1.0, df)?;
-        let p_value = 1.0 - distribution.cdf(w);
+        let p_value = 1.0 - distribution.cdf(estimate);
 
         Ok(LevenesTest {
             df,
-            estimate: w,
-            p_value: p_value
+            estimate,
+            p_value
         })
     }
 }

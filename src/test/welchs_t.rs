@@ -18,7 +18,7 @@ pub struct WelchsTTest  {
 
 impl WelchsTTest  {
     /// Run Welch's two-sample t-test on samples `x` and `y`.
-    pub fn independent (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<WelchsTTest > {
+    pub fn independent (x: &[f64], y: &[f64]) -> statrs::Result<WelchsTTest > {
         let var_x = x.variance();
         let var_y = y.variance();
         let var_x_n = var_x / x.n();
@@ -41,7 +41,7 @@ impl WelchsTTest  {
             df,
             effect_size,
             estimate: t,
-            p_value: p_value
+            p_value
         })
     }
 }

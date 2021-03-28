@@ -13,7 +13,7 @@ pub struct StudentsTTest {
 
 impl StudentsTTest {
     /// Run Student's two-sample t-test on samples `x` and `y`.
-    pub fn independent (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<StudentsTTest> {
+    pub fn independent (x: &[f64], y: &[f64]) -> statrs::Result<StudentsTTest> {
         let n_x = x.n();
         let n_y = y.n();
         let df = n_x + n_y;
@@ -28,12 +28,12 @@ impl StudentsTTest {
             df,
             effect_size: effect_size.abs(),
             estimate: t,
-            p_value: p_value
+            p_value
         })
     }
 
     /// Run paired Student's t-test on samples `x` and `y`.
-    pub fn paired (x: &Vec<f64>, y: &Vec<f64>) -> statrs::Result<StudentsTTest > {
+    pub fn paired (x: &[f64], y: &[f64]) -> statrs::Result<StudentsTTest > {
         let d: Vec<_> = x.iter().zip(y).map(|(x, y)| x - y).collect();
         let df = x.df();
         let effect_size = (&d).mean() / (&d).std_dev();
@@ -46,7 +46,7 @@ impl StudentsTTest {
             df,
             effect_size: effect_size.abs(),
             estimate: t,
-            p_value: p_value
+            p_value
         })
     }
 }
