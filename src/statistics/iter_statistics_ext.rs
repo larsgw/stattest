@@ -1,5 +1,5 @@
-use statrs::statistics::Statistics;
 use crate::statistics::StatisticsExt;
+use statrs::statistics::Statistics;
 use std::borrow::Borrow;
 use std::f64;
 
@@ -43,21 +43,31 @@ mod tests {
                 let factor = 10_f64.powi(digits);
                 (number * factor).round() / factor
             }
-            None => number.round()
+            None => number.round(),
         }
     }
 
     #[test]
     fn pooled_variance() {
-        let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
-        let y = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
-        assert_eq!(round(super::StatisticsExt::pooled_variance(&x, &y), Some(3)), 446.118);
+        let x = vec![
+            134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
+        ];
+        let y = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
+        assert_eq!(
+            round(super::StatisticsExt::pooled_variance(&x, &y), Some(3)),
+            446.118
+        );
     }
 
     #[test]
     fn pooled_std_dev() {
-        let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
-        let y = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
-        assert_eq!(round(super::StatisticsExt::pooled_std_dev(&x, &y), Some(3)), 21.121);
+        let x = vec![
+            134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
+        ];
+        let y = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
+        assert_eq!(
+            round(super::StatisticsExt::pooled_std_dev(&x, &y), Some(3)),
+            21.121
+        );
     }
 }

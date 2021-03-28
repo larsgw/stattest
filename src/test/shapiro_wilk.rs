@@ -1,5 +1,5 @@
 use crate::distribution::ShapiroWilk;
-use statrs::distribution::{Normal, ContinuousCDF};
+use statrs::distribution::{ContinuousCDF, Normal};
 use statrs::function::evaluate::polynomial;
 use statrs::statistics::Statistics;
 use std::cmp;
@@ -25,7 +25,7 @@ pub struct ShapiroWilkTest {
     p_value: f64,
     estimate: f64,
     weights: Vec<f64>,
-    status: ShapiroWilkStatus
+    status: ShapiroWilkStatus,
 }
 
 /// Representation of non-fatal `IFAULT` codes (Royston, 1995).
@@ -34,7 +34,7 @@ pub enum ShapiroWilkStatus {
     /// `IFAULT = 0` (no fault)
     Ok,
     /// `IFAULT = 2` (n > 5000)
-    TooMany
+    TooMany,
 }
 
 /// Representation of fatal `IFAULT` codes (Royston, 1995).
@@ -51,21 +51,21 @@ pub enum ShapiroWilkError {
     /// `IFAULT = 6` (the data have zero range)
     NoDifference,
     /// Should not happen
-    CannotMakeDistribution
+    CannotMakeDistribution,
 }
 
 static SMALL: f64 = 1E-19; // smaller for f64?
 static FRAC_6_PI: f64 = 1.90985931710274; // 6/pi
 
 // Polynomials for estimating weights.
-static C1: [f64; 6] = [0.0, 0.221157, -0.147981, -2.07119 , 4.434685, -2.706056];
+static C1: [f64; 6] = [0.0, 0.221157, -0.147981, -2.07119, 4.434685, -2.706056];
 static C2: [f64; 6] = [0.0, 0.042981, -0.293762, -1.752461, 5.682633, -3.582633];
 // Polynomial for estimating scaling factor.
 static G: [f64; 2] = [-2.273, 0.459];
 
 impl ShapiroWilkTest {
     /// Run the Shapiro-Wilk test on the sample `x`.
-    pub fn new (x: &[f64]) -> Result<ShapiroWilkTest, ShapiroWilkError> {
+    pub fn new(x: &[f64]) -> Result<ShapiroWilkTest, ShapiroWilkError> {
         let n = x.len();
         let mut sorted = x.to_owned();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal));
@@ -93,13 +93,17 @@ impl ShapiroWilkTest {
         let complement = (denominator - numerator.powi(2)) / denominator;
         let estimate = 1.0 - complement;
 
-        let status = if n > 5000 { ShapiroWilkStatus::TooMany } else { ShapiroWilkStatus::Ok };
+        let status = if n > 5000 {
+            ShapiroWilkStatus::TooMany
+        } else {
+            ShapiroWilkStatus::Ok
+        };
         let p_value = if n == 3 {
             FRAC_6_PI * (estimate.sqrt().asin() - FRAC_PI_3).max(0.0)
         } else {
             let distribution = match ShapiroWilk::new(n) {
                 Ok(distribution) => distribution,
-                Err(_) => return Err(ShapiroWilkError::CannotMakeDistribution)
+                Err(_) => return Err(ShapiroWilkError::CannotMakeDistribution),
             };
             1.0 - distribution.cdf(if n <= 11 {
                 let gamma = polynomial(n as f64, &G);
@@ -113,7 +117,7 @@ impl ShapiroWilkTest {
             weights,
             status,
             estimate,
-            p_value
+            p_value,
         })
     }
 
@@ -143,18 +147,15 @@ impl ShapiroWilkTest {
 
         let (weights_set, scale) = if n > 5 {
             let weight1 = polynomial(rsn, &C2) - weights[1] / root_sum_squared;
-            let scale = (
-                (sum_squared - 2.0 * (weights[0].powi(2) + weights[1].powi(2))) /
-                (1.0 - 2.0 * (weight0.powi(2) + weight1.powi(2)))
-            ).sqrt();
+            let scale = ((sum_squared - 2.0 * (weights[0].powi(2) + weights[1].powi(2)))
+                / (1.0 - 2.0 * (weight0.powi(2) + weight1.powi(2))))
+            .sqrt();
             weights[1] = -weight1;
             weights[n - 2] = weight1;
             (2, scale)
         } else {
-            let scale = (
-                (sum_squared - 2.0 * weights[0].powi(2)) /
-                (1.0 - 2.0 * weight0.powi(2))
-            ).sqrt();
+            let scale =
+                ((sum_squared - 2.0 * weights[0].powi(2)) / (1.0 - 2.0 * weight0.powi(2))).sqrt();
             (1, scale)
         };
 
@@ -174,7 +175,11 @@ impl ShapiroWilkTest {
 mod tests {
     #[test]
     fn shapiro_wilk() {
-        let x = vec!(0.139, 0.157, 0.175, 0.256, 0.344, 0.413, 0.503, 0.577, 0.614, 0.655, 0.954, 1.392, 1.557, 1.648, 1.690, 1.994, 2.174, 2.206, 3.245, 3.510, 3.571, 4.354, 4.980, 6.084, 8.351);
+        let x = vec![
+            0.139, 0.157, 0.175, 0.256, 0.344, 0.413, 0.503, 0.577, 0.614, 0.655, 0.954, 1.392,
+            1.557, 1.648, 1.690, 1.994, 2.174, 2.206, 3.245, 3.510, 3.571, 4.354, 4.980, 6.084,
+            8.351,
+        ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.8346662753181684);
         assert_eq!(test.p_value, 0.0009134904817755807);
@@ -182,7 +187,9 @@ mod tests {
 
     #[test]
     fn shapiro_wilk_1() {
-        let x = vec!(134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0);
+        let x = vec![
+            134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
+        ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.9923657326481632);
         assert_eq!(test.p_value, 0.9999699312420669);
@@ -190,7 +197,7 @@ mod tests {
 
     #[test]
     fn shapiro_wilk_2() {
-        let x = vec!(70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0);
+        let x = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.9980061683004456);
         assert_eq!(test.p_value, 0.9999411393249124);
@@ -198,7 +205,12 @@ mod tests {
 
     #[test]
     fn large_range() {
-        let x = vec!(0.139E100, 0.157E100, 0.175E100, 0.256E100, 0.344E100, 0.413E100, 0.503E100, 0.577E100, 0.614E100, 0.655E100, 0.954E100, 1.392E100, 1.557E100, 1.648E100, 1.690E100, 1.994E100, 2.174E100, 2.206E100, 3.245E100, 3.510E100, 3.571E100, 4.354E100, 4.980E100, 6.084E100, 8.351E100);
+        let x = vec![
+            0.139E100, 0.157E100, 0.175E100, 0.256E100, 0.344E100, 0.413E100, 0.503E100, 0.577E100,
+            0.614E100, 0.655E100, 0.954E100, 1.392E100, 1.557E100, 1.648E100, 1.690E100, 1.994E100,
+            2.174E100, 2.206E100, 3.245E100, 3.510E100, 3.571E100, 4.354E100, 4.980E100, 6.084E100,
+            8.351E100,
+        ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.8346662753181684);
         assert_eq!(test.p_value, 0.0009134904817755807);
@@ -206,7 +218,10 @@ mod tests {
 
     #[test]
     fn nearly_normally_distributed() {
-        let x = vec!(-0.44, -0.31, -0.25, -0.21, -0.18, -0.15, -0.12, -0.10, -0.08, -0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18, 0.21, 0.25, 0.31, 0.44);
+        let x = vec![
+            -0.44, -0.31, -0.25, -0.21, -0.18, -0.15, -0.12, -0.10, -0.08, -0.06, -0.04, -0.02,
+            0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18, 0.21, 0.25, 0.31, 0.44,
+        ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.9997987717271388);
         assert_eq!(test.p_value, 1.0);
@@ -214,7 +229,7 @@ mod tests {
 
     #[test]
     fn normally_distributed() {
-        let x = vec!(
+        let x = vec![
             -0.4417998157703872,
             -0.310841224215176,
             -0.2544758389229413,
@@ -240,7 +255,7 @@ mod tests {
             0.2544758389229413,
             0.310841224215176,
             0.4417998157703872,
-        );
+        ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
         assert_eq!(test.estimate, 0.9999999999999999);
         assert_eq!(test.p_value, 1.0);

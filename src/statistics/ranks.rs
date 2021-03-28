@@ -4,7 +4,7 @@ use std::iter::FusedIterator;
 /// For the ranking of groups of variables.
 pub trait Ranks<T> {
     /// Returns a vector of ranks.
-    fn ranks (self) -> (Vec<T>, usize);
+    fn ranks(self) -> (Vec<T>, usize);
 }
 
 impl<T> Ranks<f64> for T
@@ -14,7 +14,8 @@ where
 {
     fn ranks(self) -> (Vec<f64>, usize) {
         let mut observations: Vec<_> = self.into_iter().map(|x| *x.borrow()).enumerate().collect();
-        observations.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        observations
+            .sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let (sorted_indices, sorted_values): (Vec<_>, Vec<_>) = observations.into_iter().unzip();
         let groups = DedupWithCount::new(sorted_values.iter());
@@ -31,17 +32,19 @@ where
 }
 
 struct ResolveTies<I, T>
-    where I: Iterator<Item = (usize, T)>
+where
+    I: Iterator<Item = (usize, T)>,
 {
     iter: I,
     index: usize,
     left: usize,
     resolved: Option<f64>,
-    tie_correction: usize
+    tie_correction: usize,
 }
 
 impl<I, T> ResolveTies<I, T>
-    where I: Iterator<Item = (usize, T)>
+where
+    I: Iterator<Item = (usize, T)>,
 {
     fn new(iter: I) -> Self {
         ResolveTies {
@@ -49,7 +52,7 @@ impl<I, T> ResolveTies<I, T>
             index: 0,
             left: 0,
             resolved: None,
-            tie_correction: 0
+            tie_correction: 0,
         }
     }
 
@@ -59,7 +62,8 @@ impl<I, T> ResolveTies<I, T>
 }
 
 impl<I, T> Iterator for ResolveTies<I, T>
-    where I: Iterator<Item = (usize, T)>
+where
+    I: Iterator<Item = (usize, T)>,
 {
     type Item = f64;
 
@@ -76,8 +80,8 @@ impl<I, T> Iterator for ResolveTies<I, T>
                     self.index += 1;
                     self.tie_correction += count.pow(3) - count;
                     self.resolved
-                },
-                None => None
+                }
+                None => None,
             }
         }
     }
@@ -91,25 +95,31 @@ impl<I, T> Iterator for ResolveTies<I, T>
 impl<I, T> FusedIterator for ResolveTies<I, T> where I: Iterator<Item = (usize, T)> {}
 
 struct DedupWithCount<I>
-    where I: Iterator, I::Item: PartialEq
+where
+    I: Iterator,
+    I::Item: PartialEq,
 {
     iter: I,
-    peek: Option<I::Item>
+    peek: Option<I::Item>,
 }
 
 impl<I> DedupWithCount<I>
-    where I: Iterator, I::Item: PartialEq
+where
+    I: Iterator,
+    I::Item: PartialEq,
 {
     fn new(mut iter: I) -> Self {
         DedupWithCount {
             peek: iter.next(),
-            iter
+            iter,
         }
     }
 }
 
 impl<I> Iterator for DedupWithCount<I>
-    where I: Iterator, I::Item: PartialEq
+where
+    I: Iterator,
+    I::Item: PartialEq,
 {
     type Item = (usize, I::Item);
 
@@ -126,12 +136,12 @@ impl<I> Iterator for DedupWithCount<I>
 
                 let value = match next {
                     Some(value) => self.peek.replace(value).unwrap(),
-                    None => self.peek.take().unwrap()
+                    None => self.peek.take().unwrap(),
                 };
 
-                break Some((count, value))
+                break Some((count, value));
             } else {
-                break None
+                break None;
             }
         }
     }

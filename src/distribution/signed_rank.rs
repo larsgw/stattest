@@ -1,8 +1,8 @@
+use rand::Rng;
 use statrs::distribution::{Continuous, ContinuousCDF, Normal};
 use statrs::function::factorial::binomial;
 use statrs::statistics::*;
 use statrs::Result;
-use rand::Rng;
 
 /// Implements an approximation of the distribution of the W
 /// statistic of the [Wilcoxon signed rank test](https://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test).
@@ -14,13 +14,13 @@ use rand::Rng;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SignedRank {
     approximation: Approximation,
-    n: usize
+    n: usize,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum Approximation {
     Normal(Normal),
-    Exact
+    Exact,
 }
 
 impl SignedRank {
@@ -61,7 +61,7 @@ impl SignedRank {
 
         Ok(SignedRank {
             n,
-            approximation: Approximation::Normal(normal)
+            approximation: Approximation::Normal(normal),
         })
     }
 
@@ -78,7 +78,7 @@ impl SignedRank {
     pub fn exact(n: usize) -> Result<SignedRank> {
         Ok(SignedRank {
             n,
-            approximation: Approximation::Exact
+            approximation: Approximation::Exact,
         })
     }
 }
@@ -98,7 +98,9 @@ fn partitions(number: usize, parts: usize, size: usize) -> usize {
 impl ::rand::distributions::Distribution<f64> for SignedRank {
     fn sample<R: Rng + ?Sized>(&self, r: &mut R) -> f64 {
         match self.approximation {
-            Approximation::Normal(normal) => ::rand::distributions::Distribution::sample(&normal, r),
+            Approximation::Normal(normal) => {
+                ::rand::distributions::Distribution::sample(&normal, r)
+            }
             Approximation::Exact => {
                 todo!();
             }
@@ -116,7 +118,9 @@ impl ContinuousCDF<f64, f64> for SignedRank {
 
                 for n in 1..=self.n {
                     let n_choose_2 = binomial(n as u64, 2) as usize;
-                    if n_choose_2 > r { continue }
+                    if n_choose_2 > r {
+                        continue;
+                    }
                     for i in n..=(r - n_choose_2) {
                         sum += partitions(i, n, self.n - n + 1);
                     }
@@ -153,32 +157,28 @@ impl Distribution<f64> for SignedRank {
     fn mean(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.mean(),
-            Approximation::Exact => {
-                Some((self.n * (self.n + 1)) as f64 / 4.0)
-            }
+            Approximation::Exact => Some((self.n * (self.n + 1)) as f64 / 4.0),
         }
     }
 
     fn variance(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.variance(),
-            Approximation::Exact => {
-                Some((self.n * (self.n + 1) * (2 * self.n + 1)) as f64 / 24.0)
-            }
+            Approximation::Exact => Some((self.n * (self.n + 1) * (2 * self.n + 1)) as f64 / 24.0),
         }
     }
 
     fn entropy(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.entropy(),
-            Approximation::Exact => None
+            Approximation::Exact => None,
         }
     }
 
     fn skewness(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.skewness(),
-            Approximation::Exact => Some(0.0)
+            Approximation::Exact => Some(0.0),
         }
     }
 }
@@ -187,7 +187,7 @@ impl Median<f64> for SignedRank {
     fn median(&self) -> f64 {
         match self.approximation {
             Approximation::Normal(normal) => normal.median(),
-            Approximation::Exact => self.mean().unwrap()
+            Approximation::Exact => self.mean().unwrap(),
         }
     }
 }
@@ -196,7 +196,7 @@ impl Mode<Option<f64>> for SignedRank {
     fn mode(&self) -> Option<f64> {
         match self.approximation {
             Approximation::Normal(normal) => normal.mode(),
-            Approximation::Exact => self.mean()
+            Approximation::Exact => self.mean(),
         }
     }
 }
@@ -211,9 +211,11 @@ impl Continuous<f64, f64> for SignedRank {
 
                 for n in 1..=self.n {
                     let n_choose_2 = binomial(n as u64, 2) as usize;
-                    if n_choose_2 > r { break }
+                    if n_choose_2 > r {
+                        break;
+                    }
                     sum += partitions(r - n_choose_2, n, self.n - n + 1);
-                };
+                }
 
                 sum as f64 / 2_f64.powi(self.n as i32)
             }
@@ -223,7 +225,7 @@ impl Continuous<f64, f64> for SignedRank {
     fn ln_pdf(&self, x: f64) -> f64 {
         match self.approximation {
             Approximation::Normal(normal) => normal.ln_pdf(x),
-            Approximation::Exact => self.pdf(x).ln()
+            Approximation::Exact => self.pdf(x).ln(),
         }
     }
 }

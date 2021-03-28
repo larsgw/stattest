@@ -1,16 +1,16 @@
+use rand::Rng;
 use statrs::distribution::{Continuous, ContinuousCDF, Normal};
 use statrs::function::evaluate::polynomial;
 use statrs::statistics::*;
 use statrs::Result;
-use rand::Rng;
 
 // Polynomials used to calculate the mean and standard deviation
 // of a normal distribution that approximates the distribution of
 // the W statistic of the Shapiro-Wilk test (Royston, 1992).
-static C3: [f64; 4] = [ 0.5440, -0.39978 ,  0.025054 , -0.0006714];
-static C4: [f64; 4] = [ 1.3822, -0.77857 ,  0.062767 , -0.0020322];
-static C5: [f64; 4] = [-1.5861, -0.31082 , -0.083751 ,  0.0038915];
-static C6: [f64; 3] = [-0.4803, -0.082676,  0.0030302];
+static C3: [f64; 4] = [0.5440, -0.39978, 0.025054, -0.0006714];
+static C4: [f64; 4] = [1.3822, -0.77857, 0.062767, -0.0020322];
+static C5: [f64; 4] = [-1.5861, -0.31082, -0.083751, 0.0038915];
+static C6: [f64; 3] = [-0.4803, -0.082676, 0.0030302];
 
 /// Implements an approximation of the distribution of the W
 /// statistic of the [Shapiro-Wilk test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test).
@@ -27,7 +27,7 @@ pub struct ShapiroWilk {
     normal: Normal,
     n: usize,
     mean: f64,
-    std_dev: f64
+    std_dev: f64,
 }
 
 impl ShapiroWilk {
@@ -53,8 +53,13 @@ impl ShapiroWilk {
 
         let result = Normal::new(mean, std_dev);
         match result {
-            Ok(normal) => Ok(ShapiroWilk { normal, n, mean, std_dev }),
-            Err(error) => Err(error)
+            Ok(normal) => Ok(ShapiroWilk {
+                normal,
+                n,
+                mean,
+                std_dev,
+            }),
+            Err(error) => Err(error),
         }
     }
 
