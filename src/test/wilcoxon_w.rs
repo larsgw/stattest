@@ -55,7 +55,7 @@ impl WilcoxonWTest {
         self.effect_size
     }
 
-    pub fn estimate(&self) -> f64 {
+    pub fn estimate(&self) -> (f64, f64) {
         self.estimate
     }
 }
