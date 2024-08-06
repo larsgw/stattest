@@ -22,3 +22,16 @@ pub enum AlternativeHypothesis {
     Different,
     Less,
 }
+
+/// Trait for statistical tests.
+pub trait StatisticalTest {
+    /// The type of the estimate.
+    type Estimate;
+
+    /// Returns the estimate of the test statistic.
+    fn estimate(&self) -> Self::Estimate;
+    /// Returns the degrees of freedom.
+    fn p_value(&self) -> f64;
+    /// Returns the effect size.
+    fn effect_size(&self) -> f64;
+}

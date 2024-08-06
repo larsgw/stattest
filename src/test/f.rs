@@ -1,6 +1,8 @@
 use crate::statistics::StatisticsExt;
 use statrs::distribution::{ContinuousCDF, FisherSnedecor};
 
+use super::StatisticalTest;
+
 /// Implements the [F-test of equality of variances](https://en.wikipedia.org/wiki/F-test_of_equality_of_variances).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct FTest {
@@ -31,18 +33,36 @@ impl FTest {
     }
 }
 
+impl StatisticalTest for FTest {
+    type Estimate = f64;
+
+    fn estimate(&self) -> f64 {
+        self.estimate
+    }
+
+    fn p_value(&self) -> f64 {
+        self.p_value
+    }
+
+    fn effect_size(&self) -> f64 {
+        self.estimate
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn f_test() {
         let x = vec![
             134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
         ];
         let y = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
-        let result = super::FTest::new(&x, &y).unwrap();
+        let result = FTest::new(&x, &y).unwrap();
         assert_eq!(result.df, (11.0, 6.0));
-        assert_eq!(result.estimate, 1.0755200911940725);
-        assert_eq!(result.p_value, 0.4893961256182331);
+        assert_eq!(result.estimate(), 1.0755200911940725);
+        assert_eq!(result.p_value(), 0.4893961256182331);
     }
 
     #[test]
@@ -51,9 +71,9 @@ mod tests {
             134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
         ];
         let y = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
-        let result = super::FTest::new(&y, &x).unwrap();
+        let result = FTest::new(&y, &x).unwrap();
         assert_eq!(result.df, (6.0, 11.0));
-        assert_eq!(result.estimate, 0.9297827239003709);
-        assert_eq!(result.p_value, 0.48939612561823265);
+        assert_eq!(result.estimate(), 0.9297827239003709);
+        assert_eq!(result.p_value(), 0.48939612561823265);
     }
 }
