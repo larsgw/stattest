@@ -5,6 +5,8 @@ use statrs::statistics::Statistics;
 use std::cmp;
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_3};
 
+use super::StatisticalTest;
+
 /// Implements the [Shapiro-Wilk test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test)
 /// (Shapiro & Wilk, 1965). A simplified port of the algorithm
 /// described by Royston (1992, 1995).
@@ -171,8 +173,26 @@ impl ShapiroWilkTest {
     }
 }
 
+impl StatisticalTest for ShapiroWilkTest {
+    type Estimate = f64;
+
+    fn estimate(&self) -> f64 {
+        self.estimate
+    }
+
+    fn p_value(&self) -> f64 {
+        self.p_value
+    }
+
+    fn effect_size(&self) -> f64 {
+        self.estimate
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn shapiro_wilk() {
         let x = vec![
@@ -180,9 +200,10 @@ mod tests {
             1.557, 1.648, 1.690, 1.994, 2.174, 2.206, 3.245, 3.510, 3.571, 4.354, 4.980, 6.084,
             8.351,
         ];
-        let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.8346662753181684);
-        assert_eq!(test.p_value, 0.0009134904817755807);
+        let test = ShapiroWilkTest::new(&x).unwrap();
+        assert_eq!(test.estimate(), 0.8346662753181684);
+        assert_eq!(test.p_value(), 0.0009134904817755807);
+        assert_eq!(test.effect_size(), 0.8346662753181684);
     }
 
     #[test]
@@ -190,17 +211,19 @@ mod tests {
         let x = vec![
             134.0, 146.0, 104.0, 119.0, 124.0, 161.0, 107.0, 83.0, 113.0, 129.0, 97.0, 123.0,
         ];
-        let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.9923657326481632);
-        assert_eq!(test.p_value, 0.9999699312420669);
+        let test = ShapiroWilkTest::new(&x).unwrap();
+        assert_eq!(test.estimate(), 0.9923657326481632);
+        assert_eq!(test.p_value(), 0.9999699312420669);
+        assert_eq!(test.effect_size(), 0.9923657326481632);
     }
 
     #[test]
     fn shapiro_wilk_2() {
         let x = vec![70.0, 118.0, 101.0, 85.0, 107.0, 132.0, 94.0];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.9980061683004456);
-        assert_eq!(test.p_value, 0.9999411393249124);
+        assert_eq!(test.estimate(), 0.9980061683004456);
+        assert_eq!(test.p_value(), 0.9999411393249124);
+        assert_eq!(test.effect_size(), 0.9980061683004456);
     }
 
     #[test]
@@ -212,8 +235,9 @@ mod tests {
             8.351E100,
         ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.8346662753181684);
-        assert_eq!(test.p_value, 0.0009134904817755807);
+        assert_eq!(test.estimate(), 0.8346662753181684);
+        assert_eq!(test.p_value(), 0.0009134904817755807);
+        assert_eq!(test.effect_size(), 0.8346662753181684);
     }
 
     #[test]
@@ -223,8 +247,9 @@ mod tests {
             0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18, 0.21, 0.25, 0.31, 0.44,
         ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.9997987717271388);
-        assert_eq!(test.p_value, 1.0);
+        assert_eq!(test.estimate(), 0.9997987717271388);
+        assert_eq!(test.p_value(), 1.0);
+        assert_eq!(test.effect_size(), 0.9997987717271388);
     }
 
     #[test]
@@ -257,7 +282,8 @@ mod tests {
             0.4417998157703872,
         ];
         let test = super::ShapiroWilkTest::new(&x).unwrap();
-        assert_eq!(test.estimate, 0.9999999999999999);
-        assert_eq!(test.p_value, 1.0);
+        assert_eq!(test.estimate(), 0.9999999999999999);
+        assert_eq!(test.p_value(), 1.0);
+        assert_eq!(test.effect_size(), 0.9999999999999999);
     }
 }

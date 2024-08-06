@@ -2,6 +2,8 @@ use crate::distribution::SignedRank;
 use crate::statistics::*;
 use statrs::distribution::ContinuousCDF;
 
+use super::StatisticalTest;
+
 /// Implements the [Wilcoxon signed rank test](https://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct WilcoxonWTest {
@@ -46,37 +48,45 @@ impl WilcoxonWTest {
             p_value,
         })
     }
+}
 
-    pub fn p_value(&self) -> f64 {
+impl StatisticalTest for WilcoxonWTest {
+    type Estimate = (f64, f64);
+
+    fn estimate(&self) -> (f64, f64) {
+        self.estimate
+    }
+
+    fn p_value(&self) -> f64 {
         self.p_value
     }
 
-    pub fn effect_size(&self) -> f64 {
+    fn effect_size(&self) -> f64 {
         self.effect_size
-    }
-
-    pub fn estimate(&self) -> (f64, f64) {
-        self.estimate
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn paired() {
         let x = vec![8.0, 6.0, 5.5, 11.0, 8.5, 5.0, 6.0, 6.0];
         let y = vec![8.5, 9.0, 6.5, 10.5, 9.0, 7.0, 6.5, 7.0];
-        let test = super::WilcoxonWTest::paired(&x, &y).unwrap();
-        assert_eq!(test.estimate, (33.5, 2.5));
-        assert_eq!(test.p_value, 0.027785782704095215);
+        let test = WilcoxonWTest::paired(&x, &y).unwrap();
+        assert_eq!(test.estimate(), (33.5, 2.5));
+        assert_eq!(test.p_value(), 0.027785782704095215);
+        assert_eq!(test.effect_size(),  0.06944444444444445);
     }
 
     #[test]
     fn paired_2() {
         let x = vec![209.0, 200.0, 177.0, 169.0, 159.0, 169.0, 187.0, 198.0];
         let y = vec![151.0, 168.0, 147.0, 164.0, 166.0, 163.0, 176.0, 188.0];
-        let test = super::WilcoxonWTest::paired(&x, &y).unwrap();
-        assert_eq!(test.estimate, (3.0, 33.0));
-        assert_eq!(test.p_value, 0.0390625);
+        let test = WilcoxonWTest::paired(&x, &y).unwrap();
+        assert_eq!(test.estimate(), (3.0, 33.0));
+        assert_eq!(test.p_value(), 0.0390625);
+        assert_eq!(test.effect_size(), 0.08333333333333333);
     }
 }
