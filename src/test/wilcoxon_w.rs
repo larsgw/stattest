@@ -77,7 +77,7 @@ mod tests {
         let test = WilcoxonWTest::paired(&x, &y).unwrap();
         assert_eq!(test.estimate(), (33.5, 2.5));
         assert_eq!(test.p_value(), 0.027785782704095215);
-        assert_eq!(test.effect_size(),  0.06944444444444445);
+        assert_eq!(test.effect_size(), 0.06944444444444445);
     }
 
     #[test]
