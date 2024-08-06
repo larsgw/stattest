@@ -46,6 +46,18 @@ impl WilcoxonWTest {
             p_value,
         })
     }
+
+    pub fn p_value(&self) -> f64 {
+        self.p_value
+    }
+
+    pub fn effect_size(&self) -> f64 {
+        self.effect_size
+    }
+
+    pub fn estimate(&self) -> f64 {
+        self.estimate
+    }
 }
 
 #[cfg(test)]
