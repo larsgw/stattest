@@ -8,5 +8,5 @@ edition = "2018"
 doctest = false
 
 [dependencies]
-statrs = { git = "https://github.com/larsgw/statrs", branch = "patch-1" }
-rand = "0.7.3"
+rand = "0.8.5"
+statrs = "0.17.1"
