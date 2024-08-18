@@ -17,16 +17,20 @@ impl WilcoxonWTest {
     pub fn paired(x: &[f64], y: &[f64]) -> statrs::Result<WilcoxonWTest> {
         assert_eq!(x.len(), y.len(), "Samples must have the same length");
 
-        let (ranks, tie_correction) = x.iter().zip(y).map(|(x, y)| (x - y).abs()).ranks();
-        assert_eq!(ranks.len(), x.len(), "Ranks must have the same length as the samples");
+        let mut deltas: Vec<f64> = x.iter().zip(y).map(|(x, y)| x - y).collect();
+        deltas.sort_unstable_by(|a, b| {
+            (a.abs()).partial_cmp(&b.abs()).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let mut tie_solver = ResolveTies::new(deltas.iter().copied(), f64::abs);
 
         let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
-        for ((x, y), rank) in x.iter().zip(y).zip(ranks) {
-            if x < y {
+        for (rank, delta) in &mut tie_solver {
+            if delta < 0.0 {
                 estimate.0 += rank;
-            } else if x > y {
+            } else if delta > 0.0 {
                 estimate.1 += rank;
             } else {
                 zeroes += 1;
@@ -38,7 +42,7 @@ impl WilcoxonWTest {
         } else {
             estimate.1
         };
-        let distribution = SignedRank::new(x.len(), zeroes, tie_correction)?;
+        let distribution = SignedRank::new(x.len(), zeroes, tie_solver.tie_correction())?;
         let p_value = distribution.cdf(estimate_small);
 
         let n = x.len() as f64;
