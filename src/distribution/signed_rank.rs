@@ -317,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fast_exp2_reciprocal(){
+    fn test_fast_exp2_reciprocal() {
         for i in 0..1000 {
             let x = i as u32;
             let y = super::fast_exp2_reciprocal(x);

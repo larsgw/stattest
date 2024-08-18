@@ -18,7 +18,9 @@ where
         let mut resolved_ties = ResolveTies::from(observations.iter().map(|(_, value)| *value));
         let mut ranks = vec![0.0; observations.len()];
 
-        for ((rank, _), old_index) in (&mut resolved_ties).zip(observations.iter().map(|(index, _)| *index)) {
+        for ((rank, _), old_index) in
+            (&mut resolved_ties).zip(observations.iter().map(|(index, _)| *index))
+        {
             ranks[old_index] = rank;
         }
 
@@ -62,7 +64,7 @@ impl<I, J> From<J> for ResolveTies<I, fn(I::Item) -> I::Item>
 where
     J: IntoIterator<IntoIter = I>,
     I: Iterator,
-    I::Item: Copy
+    I::Item: Copy,
 {
     fn from(iter: J) -> Self {
         ResolveTies::new(iter.into_iter(), |x| x)
@@ -78,11 +80,16 @@ where
     type Item = (f64, I::Item);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|item|{
+        self.iter.next().map(|item| {
             let normalized_item = (self.normalize)(item);
-            if self.current_normalized_item != Some(normalized_item){
+            if self.current_normalized_item != Some(normalized_item) {
                 self.current_normalized_item = Some(normalized_item);
-                let count = 1 + self.iter.clone().map(&self.normalize).take_while(|x| *x == normalized_item).count();
+                let count = 1 + self
+                    .iter
+                    .clone()
+                    .map(&self.normalize)
+                    .take_while(|x| *x == normalized_item)
+                    .count();
                 self.resolved = (1.0 + count as f64) / 2.0 + self.index as f64;
                 self.tie_correction += count.pow(3) - count;
             }

@@ -19,7 +19,9 @@ impl WilcoxonWTest {
 
         let mut deltas: Vec<f64> = x.iter().zip(y).map(|(x, y)| x - y).collect();
         deltas.sort_unstable_by(|a, b| {
-            (a.abs()).partial_cmp(&b.abs()).unwrap_or(std::cmp::Ordering::Equal)
+            (a.abs())
+                .partial_cmp(&b.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut tie_solver = ResolveTies::new(deltas.iter().copied(), f64::abs);
