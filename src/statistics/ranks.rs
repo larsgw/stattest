@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::iter::FusedIterator;
 
 /// For the ranking of groups of variables.
@@ -10,12 +9,13 @@ pub trait Ranks<T> {
 impl<T> Ranks<f64> for T
 where
     T: IntoIterator,
-    T::Item: Borrow<f64>,
+    T::Item: PartialOrd,
 {
     fn ranks(self) -> (Vec<f64>, usize) {
-        let mut observations: Vec<_> = self.into_iter().map(|x| *x.borrow()).enumerate().collect();
-        observations
-            .sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let mut observations: Vec<(usize, T::Item)> = self.into_iter().enumerate().collect();
+        observations.sort_unstable_by(|(_, a), (_, b)| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let (sorted_indices, sorted_values): (Vec<_>, Vec<_>) = observations.into_iter().unzip();
         let groups = DedupWithCount::new(sorted_values.iter());
@@ -38,7 +38,7 @@ where
     iter: I,
     index: usize,
     left: usize,
-    resolved: Option<f64>,
+    resolved: f64,
     tie_correction: usize,
 }
 
@@ -51,7 +51,7 @@ where
             iter,
             index: 0,
             left: 0,
-            resolved: None,
+            resolved: 0.0,
             tie_correction: 0,
         }
     }
@@ -71,18 +71,15 @@ where
         if self.left > 0 {
             self.left -= 1;
             self.index += 1;
-            self.resolved
+            Some(self.resolved)
         } else {
-            match self.iter.next() {
-                Some((count, _)) => {
-                    self.resolved = Some(((1.0 + count as f64) / 2.0) + self.index as f64);
-                    self.left = count - 1;
-                    self.index += 1;
-                    self.tie_correction += count.pow(3) - count;
-                    self.resolved
-                }
-                None => None,
-            }
+            self.iter.next().map(|(count, _)| {
+                self.resolved = ((1.0 + count as f64) / 2.0) + self.index as f64;
+                self.left = count - 1;
+                self.index += 1;
+                self.tie_correction += count.pow(3) - count;
+                self.resolved
+            })
         }
     }
 
@@ -100,7 +97,7 @@ where
     I::Item: PartialEq,
 {
     iter: I,
-    peek: Option<I::Item>,
+    current_value: Option<I::Item>,
 }
 
 impl<I> DedupWithCount<I>
@@ -110,7 +107,7 @@ where
 {
     fn new(mut iter: I) -> Self {
         DedupWithCount {
-            peek: iter.next(),
+            current_value: iter.next(),
             iter,
         }
     }
@@ -119,31 +116,24 @@ where
 impl<I> Iterator for DedupWithCount<I>
 where
     I: Iterator,
-    I::Item: PartialEq,
+    I::Item: PartialEq + Copy,
 {
     type Item = (usize, I::Item);
 
     fn next(&mut self) -> Option<(usize, I::Item)> {
-        let mut count = 1;
-        loop {
-            if self.peek.is_some() {
-                let next = self.iter.next();
-
-                if self.peek == next {
-                    count += 1;
-                    continue;
-                }
-
-                let value = match next {
-                    Some(value) => self.peek.replace(value).unwrap(),
-                    None => self.peek.take().unwrap(),
-                };
-
-                break Some((count, value));
-            } else {
-                break None;
+        self.current_value.map(|current_value| {
+            let mut count = 1;
+            self.current_value = self.iter.next();
+            while self
+                .current_value
+                .map(|next_value| next_value == current_value)
+                .unwrap_or(false)
+            {
+                count += 1;
+                self.current_value = self.iter.next();
             }
-        }
+            (count, current_value)
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -152,4 +142,4 @@ where
     }
 }
 
-impl<I: Iterator> FusedIterator for DedupWithCount<I> where I::Item: PartialEq {}
+impl<I: Iterator> FusedIterator for DedupWithCount<I> where I::Item: PartialEq + Copy {}

@@ -10,3 +10,10 @@ doctest = false
 [dependencies]
 statrs = { git = "https://github.com/larsgw/statrs", branch = "patch-1" }
 rand = "0.7.3"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "wilcoxon"
+harness = false

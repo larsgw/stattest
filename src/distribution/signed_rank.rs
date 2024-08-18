@@ -108,6 +108,11 @@ impl ::rand::distributions::Distribution<f64> for SignedRank {
     }
 }
 
+/// Fast approximation of f64 2^-x for integer x.
+fn fast_exp2_reciprocal(x: u32) -> f64 {
+    f64::from_le_bytes((u64::from(1023_u32 - x) << 52).to_le_bytes())
+}
+
 impl ContinuousCDF<f64, f64> for SignedRank {
     fn cdf(&self, x: f64) -> f64 {
         match self.approximation {
@@ -126,7 +131,7 @@ impl ContinuousCDF<f64, f64> for SignedRank {
                     }
                 }
 
-                sum as f64 / 2_f64.powi(self.n as i32 - 1)
+                sum as f64 * fast_exp2_reciprocal(self.n as u32 - 1)
             }
         }
     }
@@ -217,7 +222,7 @@ impl Continuous<f64, f64> for SignedRank {
                     sum += partitions(r - n_choose_2, n, self.n - n + 1);
                 }
 
-                sum as f64 / 2_f64.powi(self.n as i32)
+                sum as f64 * fast_exp2_reciprocal(self.n as u32)
             }
         }
     }
@@ -309,5 +314,14 @@ mod tests {
     #[test]
     fn partition() {
         assert_eq!(super::partitions(7, 3, 5), 4);
+    }
+
+    #[test]
+    fn test_fast_exp2_reciprocal(){
+        for i in 0..1000 {
+            let x = i as u32;
+            let y = super::fast_exp2_reciprocal(x);
+            assert_eq!(y, 2.0_f64.powf(-f64::from(x)));
+        }
     }
 }

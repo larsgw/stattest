@@ -15,8 +15,11 @@ pub struct WilcoxonWTest {
 impl WilcoxonWTest {
     /// Run Wilcoxon signed rank test on samples `x` and `y`.
     pub fn paired(x: &[f64], y: &[f64]) -> statrs::Result<WilcoxonWTest> {
-        let d: Vec<_> = x.iter().zip(y).map(|(x, y)| (x - y).abs()).collect();
-        let (ranks, tie_correction) = (&d).ranks();
+        assert_eq!(x.len(), y.len(), "Samples must have the same length");
+
+        let (ranks, tie_correction) = x.iter().zip(y).map(|(x, y)| (x - y).abs()).ranks();
+        assert_eq!(ranks.len(), x.len(), "Ranks must have the same length as the samples");
+
         let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
@@ -35,10 +38,10 @@ impl WilcoxonWTest {
         } else {
             estimate.1
         };
-        let distribution = SignedRank::new(d.len(), zeroes, tie_correction)?;
+        let distribution = SignedRank::new(x.len(), zeroes, tie_correction)?;
         let p_value = distribution.cdf(estimate_small);
 
-        let n = (&d).n();
+        let n = x.len() as f64;
         let rank_sum = n * (n + 1.0) / 2.0;
         let effect_size = estimate_small / rank_sum;
 
