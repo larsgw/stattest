@@ -1,8 +1,2 @@
 Wilcoxon signed-rank test
-                        time:   [2.6232 ms 2.6244 ms 2.6259 ms]
-                        change: [-0.3806% -0.2841% -0.1987%] (p = 0.00 < 0.05)
-                        Change within noise threshold.
-Found 16 outliers among 100 measurements (16.00%)
-  3 (3.00%) high mild
-  13 (13.00%) high severe
-
+       time:   [85.022 ms 85.069 ms 85.130 ms]
