@@ -17,13 +17,12 @@ where
             a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let (sorted_indices, sorted_values): (Vec<_>, Vec<_>) = observations.into_iter().unzip();
-        let groups = DedupWithCount::new(sorted_values.iter());
+        let groups = DedupWithCount::new(observations.iter().map(|(_, value)| value));
 
         let mut resolved_ties = ResolveTies::new(groups);
-        let mut ranks = vec![0.0; sorted_values.len()];
+        let mut ranks = vec![0.0; observations.len()];
 
-        for (rank, old_index) in (&mut resolved_ties).zip(sorted_indices) {
+        for (rank, old_index) in (&mut resolved_ties).zip(observations.iter().map(|(index, _)| *index)) {
             ranks[old_index] = rank;
         }
 
