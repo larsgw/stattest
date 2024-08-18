@@ -22,8 +22,8 @@ fn generate_test_cases<const N: usize>() -> ([f64; N], [f64; N]) {
 }
 
 fn bench_wilcoxon(c: &mut Criterion) {
-    let test_cases = (0..100)
-        .map(|_| generate_test_cases::<1000>())
+    let test_cases = (0..1_000)
+        .map(|_| generate_test_cases::<10_000>())
         .collect::<Vec<_>>();
 
     c.bench_function("Wilcoxon signed-rank test", |b| {
