@@ -6,46 +6,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use core::ops::{Add, Sub};
 use rand::prelude::SliceRandom;
 use stattest::test::WilcoxonWTest;
-
-trait Bounded {
-    const UPPER_BOUND: Self;
-    const LOWER_BOUND: Self;
-}
-
-impl Bounded for i8 {
-    const UPPER_BOUND: i8 = i8::MAX;
-    const LOWER_BOUND: i8 = i8::MIN;
-}
-
-impl Bounded for i16 {
-    const UPPER_BOUND: i16 = i16::MAX;
-    const LOWER_BOUND: i16 = i16::MIN;
-}
-
-impl Bounded for i32 {
-    const UPPER_BOUND: i32 = i32::MAX;
-    const LOWER_BOUND: i32 = i32::MIN;
-}
-
-impl Bounded for i64 {
-    const UPPER_BOUND: i64 = i64::MAX;
-    const LOWER_BOUND: i64 = i64::MIN;
-}
-
-impl Bounded for i128 {
-    const UPPER_BOUND: i128 = i128::MAX;
-    const LOWER_BOUND: i128 = i128::MIN;
-}
-
-impl Bounded for f32 {
-    const UPPER_BOUND: f32 = f32::MAX;
-    const LOWER_BOUND: f32 = f32::MIN;
-}
-
-impl Bounded for f64 {
-    const UPPER_BOUND: f64 = f64::MAX;
-    const LOWER_BOUND: f64 = f64::MIN;
-}
+use stattest::traits::Bounded;
 
 trait WrappingAdd<Rhs = Self> {
     type Output;
@@ -53,11 +14,13 @@ trait WrappingAdd<Rhs = Self> {
     fn wrapping_add(self, rhs: Rhs) -> Self::Output;
 }
 
-impl<T: Bounded + Sub<T, Output=T> + Add<T, Output = T> + PartialOrd + PartialEq + Copy> WrappingAdd for T {
+impl<T: Bounded + Sub<T, Output = T> + Add<T, Output = T> + PartialOrd + PartialEq + Copy>
+    WrappingAdd for T
+{
     type Output = T;
 
     fn wrapping_add(self, rhs: T) -> Self::Output {
-        if self >= T::UPPER_BOUND - rhs{
+        if self >= T::UPPER_BOUND - rhs {
             T::LOWER_BOUND
         } else {
             self + rhs
@@ -65,8 +28,7 @@ impl<T: Bounded + Sub<T, Output=T> + Add<T, Output = T> + PartialOrd + PartialEq
     }
 }
 
-
-fn generate_test_cases<const N: usize, F: Default + Copy + WrappingAdd<F, Output=F>>(
+fn generate_test_cases<const N: usize, F: Default + Copy + WrappingAdd<F, Output = F>>(
     step: F,
 ) -> ([F; N], [F; N]) {
     let mut x = [F::default(); N];
@@ -86,50 +48,70 @@ fn generate_test_cases<const N: usize, F: Default + Copy + WrappingAdd<F, Output
     (x, y)
 }
 
+macro_rules! bench_float_wilcoxon {
+    ($group:ident, $float:ty, $($quantizer:ty),*) => {
+        let test_cases = (0..10)
+            .map(|_| generate_test_cases::<200_000, $float>(0.1454829354839453473))
+            .collect::<Vec<_>>();
+
+        $group.bench_function(&format!(
+            "sort_unstable_{}",
+            stringify!($float)
+        ), |b| {
+            b.iter(|| {
+                for (x, y) in test_cases.iter() {
+                    WilcoxonWTest::paired(black_box(x), black_box(y)).unwrap();
+                }
+            })
+        });
+
+        #[cfg(feature="voracious_radix_sort")]
+        $group.bench_function(&format!(
+            "voracious_{}",
+            stringify!($float)
+        ), |b| {
+            b.iter(|| {
+                for (x, y) in test_cases.iter() {
+                    WilcoxonWTest::voracious_paired(black_box(x), black_box(y)).unwrap();
+                }
+            })
+        });
+
+        $(
+            $group.bench_function(
+                &format!(
+                    "quantized_sort_unstable_{}_to_{}",
+                    stringify!($float),
+                    stringify!($quantizer))
+                    , |b| {
+                b.iter(|| {
+                    for (x, y) in test_cases.iter() {
+                        WilcoxonWTest::quantized_paired::<_, _, $quantizer>(black_box(x), black_box(y)).unwrap();
+                    }
+                })
+            });
+
+            #[cfg(feature="voracious_radix_sort")]
+            $group.bench_function(&format!(
+                "quantized_voracious_{}_to_{}",
+                stringify!($float),
+                stringify!($quantizer)
+            ), |b| {
+                b.iter(|| {
+                    for (x, y) in test_cases.iter() {
+                        WilcoxonWTest::voracious_quantized_paired::<_, _, $quantizer>(black_box(x), black_box(y)).unwrap();
+                    }
+                })
+            });
+        )*
+    };
+}
+
 fn bench_wilcoxon(c: &mut Criterion) {
     let mut group = c.benchmark_group("Wilcoxon signed-rank test");
 
-    let test_cases = (0..10)
-        .map(|_| generate_test_cases::<200_000, f64>(0.1454829354839453473))
-        .collect::<Vec<_>>();
-
-    group.bench_function("sort_unstable_f64", |b| {
-        b.iter(|| {
-            for (x, y) in test_cases.iter() {
-                WilcoxonWTest::paired(black_box(x), black_box(y)).unwrap();
-            }
-        })
-    });
-
-    #[cfg(feature="voracious_radix_sort")]
-    group.bench_function("voracious_f64", |b| {
-        b.iter(|| {
-            for (x, y) in test_cases.iter() {
-                WilcoxonWTest::voracious_paired(black_box(x), black_box(y)).unwrap();
-            }
-        })
-    });
-
-    let test_cases = (0..10)
-        .map(|_| generate_test_cases::<200_000, f32>(0.1454829354839453473))
-        .collect::<Vec<_>>();
-
-    group.bench_function("sort_unstable_f32", |b| {
-        b.iter(|| {
-            for (x, y) in test_cases.iter() {
-                WilcoxonWTest::paired(black_box(x), black_box(y)).unwrap();
-            }
-        })
-    });
-
-    #[cfg(feature="voracious_radix_sort")]
-    group.bench_function("voracious_f32", |b| {
-        b.iter(|| {
-            for (x, y) in test_cases.iter() {
-                WilcoxonWTest::voracious_paired(black_box(x), black_box(y)).unwrap();
-            }
-        })
-    });
+    bench_float_wilcoxon!(group, f32, i8, i16);
+    bench_float_wilcoxon!(group, f64, i8, i16, i32);
 
     let test_cases = (0..10)
         .map(|_| generate_test_cases::<200_000, i64>(1))
@@ -143,7 +125,7 @@ fn bench_wilcoxon(c: &mut Criterion) {
         })
     });
 
-    #[cfg(feature="voracious_radix_sort")]
+    #[cfg(feature = "voracious_radix_sort")]
     group.bench_function("voracious_i64", |b| {
         b.iter(|| {
             for (x, y) in test_cases.iter() {
@@ -164,7 +146,7 @@ fn bench_wilcoxon(c: &mut Criterion) {
         })
     });
 
-    #[cfg(feature="voracious_radix_sort")]
+    #[cfg(feature = "voracious_radix_sort")]
     group.bench_function("voracious_i32", |b| {
         b.iter(|| {
             for (x, y) in test_cases.iter() {
@@ -185,7 +167,7 @@ fn bench_wilcoxon(c: &mut Criterion) {
         })
     });
 
-    #[cfg(feature="voracious_radix_sort")]
+    #[cfg(feature = "voracious_radix_sort")]
     group.bench_function("voracious_i16", |b| {
         b.iter(|| {
             for (x, y) in test_cases.iter() {
@@ -206,7 +188,7 @@ fn bench_wilcoxon(c: &mut Criterion) {
         })
     });
 
-    #[cfg(feature="voracious_radix_sort")]
+    #[cfg(feature = "voracious_radix_sort")]
     group.bench_function("voracious_i8", |b| {
         b.iter(|| {
             for (x, y) in test_cases.iter() {

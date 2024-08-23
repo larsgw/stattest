@@ -1,39 +1,35 @@
 use core::fmt::Debug;
 use std::ops::Sub;
 
-use crate::distribution::SignedRank;
 use crate::statistics::*;
 use crate::traits::abs::Abs;
 use crate::traits::zero::Zero;
+use crate::traits::Bounded;
+use crate::{distribution::SignedRank, traits::quantization::Quantize};
 use statrs::distribution::ContinuousCDF;
 
 use super::StatisticalTest;
 use core::cmp::Ordering;
 
 #[cfg(feature = "voracious_radix_sort")]
-use voracious_radix_sort::{RadixSort, RadixKey, Radixable};
+use voracious_radix_sort::{RadixKey, RadixSort, Radixable};
 
 /// A struct wrapper for sorting values of type T by absolute value.
 #[derive(Copy, Clone, Debug)]
-
 #[repr(transparent)]
 pub struct AbsWrapper<T> {
     value: T,
 }
 
-impl<T> From<T> for AbsWrapper<T> {
-    fn from(value: T) -> Self {
-        AbsWrapper { value }
-    }
-}
-
 impl<T: PartialOrd + Copy + Abs<Output = T>> PartialOrd for AbsWrapper<T> {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.value.abs().partial_cmp(&other.value.abs())
     }
 }
 
 impl<T: PartialEq + Copy + Abs<Output = T>> PartialEq for AbsWrapper<T> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.value.abs() == other.value.abs()
     }
@@ -127,6 +123,56 @@ impl WilcoxonWTest {
         })
     }
 
+    pub fn quantized_paired<I, J, Q>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator + Clone,
+        J::IntoIter: ExactSizeIterator + Clone,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output:
+            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+        Q: Abs<Output = Q>
+            + PartialOrd
+            + Zero
+            + Copy
+            + Debug
+            + Quantize<<I::Item as Sub<I::Item>>::Output>
+            + Bounded,
+    {
+        WilcoxonWTest::quantized_paired_with_sort::<I, J, Q>(x, y, |x: &mut [Q]| {
+            x.sort_unstable_by(|a, b| {
+                a.abs()
+                    .partial_cmp(&b.abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        })
+    }
+
+    pub fn quantized_paired_with_sort<I, J, Q>(
+        x: I,
+        y: J,
+        sort: fn(&mut [Q]),
+    ) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator + Clone,
+        J::IntoIter: ExactSizeIterator + Clone,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output:
+            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+        Q: Abs<Output = Q>
+            + PartialOrd
+            + Zero
+            + Copy
+            + Debug
+            + Quantize<<I::Item as Sub<I::Item>>::Output>
+            + Bounded,
+    {
+        WilcoxonWTest::_quantized_paired(x, y, sort)
+    }
+
     #[cfg(feature = "voracious_radix_sort")]
     pub fn voracious_paired<I, J>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
     where
@@ -152,17 +198,85 @@ impl WilcoxonWTest {
         })
     }
 
+    #[cfg(feature = "voracious_radix_sort")]
+    pub fn voracious_quantized_paired<I, J, Q>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator + Clone,
+        J::IntoIter: ExactSizeIterator + Clone,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output:
+            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+        Q: Abs<Output = Q>
+            + PartialOrd
+            + Zero
+            + Copy
+            + Debug
+            + RadixKey
+            + Quantize<<I::Item as Sub<I::Item>>::Output>
+            + Bounded,
+        AbsWrapper<Q>: Radixable<Q>,
+    {
+        WilcoxonWTest::quantized_paired_with_sort::<I, J, Q>(x, y, |x: &mut [Q]| {
+            // Since the AbsWrapper is a transparent wrapper, we can just cast the slice to a slice of AbsWrapper
+            let x: &mut [AbsWrapper<Q>] = unsafe { std::mem::transmute(x) };
+            x.voracious_sort();
+        })
+    }
+
+    /// Run quantized Wilcoxon signed rank test on samples `x` and `y`.
+    fn _quantized_paired<I, J, Q>(x: I, y: J, sort: fn(&mut [Q])) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator + Clone,
+        J::IntoIter: ExactSizeIterator + Clone,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output:
+            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+        Q: Abs<Output = Q>
+            + PartialOrd
+            + Zero
+            + Copy
+            + Debug
+            + Quantize<<I::Item as Sub<I::Item>>::Output>
+            + Bounded,
+    {
+        Self::_paired(x, y, sort, |x, y| {
+            assert_eq!(x.len(), y.len(), "Samples must have the same length");
+            assert_ne!(x.len(), 0, "Samples must not be empty");
+            // First, we compute the maximum delta between the two samples
+            let max: <I::Item as Sub<I::Item>>::Output = x.clone().zip(y.clone()).fold(
+                <<I::Item as Sub<I::Item>>::Output as Zero>::ZERO,
+                |max, (a, b)| {
+                    let delta = (a - b).abs();
+                    if delta > max {
+                        delta
+                    } else {
+                        max
+                    }
+                },
+            );
+            // Then, we quantize the deltas
+            x.zip(y).map(|(a, b)| Q::quantize(a - b, max)).collect()
+        })
+    }
+
     /// Run Wilcoxon signed rank test on samples `x` and `y`.
-    pub fn paired_with_sort<I, J, F>(x: I, y: J, sort: F) -> statrs::Result<WilcoxonWTest>
+    fn _paired<I, J, Q>(
+        x: I,
+        y: J,
+        sort: fn(&mut [Q]),
+        delta: fn(I::IntoIter, J::IntoIter) -> Vec<Q>,
+    ) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
         J: IntoIterator<Item = I::Item>,
         I::IntoIter: ExactSizeIterator,
         J::IntoIter: ExactSizeIterator,
         I::Item: Copy + Debug + Sub<I::Item>,
-        <I::Item as Sub<I::Item>>::Output:
-            Abs<Output = <I::Item as Sub<I::Item>>::Output> + PartialOrd + Zero + Copy + Debug,
-        F: Fn(&mut [<I::Item as Sub<I::Item>>::Output]),
+        Q: Abs<Output = Q> + PartialOrd + Zero + Copy + Debug,
     {
         let x_iter = x.into_iter();
         let y_iter = y.into_iter();
@@ -171,23 +285,19 @@ impl WilcoxonWTest {
 
         assert_eq!(x_len, y_len, "Samples must have the same length");
 
-        let mut deltas: Vec<<I::Item as Sub<I::Item>>::Output> =
-            x_iter.zip(y_iter).map(|(x, y)| x - y).collect();
+        let mut deltas: Vec<Q> = delta(x_iter, y_iter);
 
         sort(&mut deltas);
 
-        let mut tie_solver = ResolveTies::new(
-            deltas.iter().copied(),
-            <<I::Item as Sub<I::Item>>::Output as Abs>::abs,
-        );
+        let mut tie_solver = ResolveTies::new(deltas.iter().copied(), Q::abs);
 
         let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
         for (rank, delta) in &mut tie_solver {
-            if delta < <<I::Item as Sub<I::Item>>::Output as Zero>::ZERO {
+            if delta < Q::ZERO {
                 estimate.0 += rank;
-            } else if delta > <<I::Item as Sub<I::Item>>::Output as Zero>::ZERO {
+            } else if delta > Q::ZERO {
                 estimate.1 += rank;
             } else {
                 zeroes += 1;
@@ -211,6 +321,24 @@ impl WilcoxonWTest {
             estimate,
             p_value,
         })
+    }
+
+    /// Run Wilcoxon signed rank test on samples `x` and `y`.
+    pub fn paired_with_sort<I, J>(
+        x: I,
+        y: J,
+        sort: fn(&mut [<I::Item as Sub<I::Item>>::Output]),
+    ) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator,
+        J::IntoIter: ExactSizeIterator,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output:
+            Abs<Output = <I::Item as Sub<I::Item>>::Output> + PartialOrd + Zero + Copy + Debug,
+    {
+        Self::_paired(x, y, sort, |x, y| x.zip(y).map(|(a, b)| a - b).collect())
     }
 }
 
@@ -285,6 +413,59 @@ mod tests {
     }
 
     test_float!(f32, f64);
+
+    macro_rules! test_bounded_float {
+        ($float:ty, $($quantizer:ty),*) => {
+            $(
+                paste::paste!{
+                    #[test]
+                    fn [<quantized_paired_ $float _to_ $quantizer>]() {
+                        let x: Vec<$float> = vec![8.0, 6.0, 5.5, 11.0, 8.5, 5.0, 6.0, 6.0];
+                        let y: Vec<$float> = vec![8.5, 9.0, 6.5, 10.5, 9.0, 7.0, 6.5, 7.0];
+                        let test = WilcoxonWTest::quantized_paired::<_, _, $quantizer>(&x, &y).unwrap();
+                        assert_eq!(test.estimate(), (33.5, 2.5));
+                        assert_eq!(test.p_value(), 0.027785782704095215);
+                        assert_eq!(test.effect_size(), 0.06944444444444445);
+                    }
+
+                    #[test]
+                    #[cfg(feature="voracious_radix_sort")]
+                    fn [<voracious_quantized_paired_ $float _to_ $quantizer>]() {
+                        let x: Vec<$float> = vec![8.0, 6.0, 5.5, 11.0, 8.5, 5.0, 6.0, 6.0];
+                        let y: Vec<$float> = vec![8.5, 9.0, 6.5, 10.5, 9.0, 7.0, 6.5, 7.0];
+                        let test = WilcoxonWTest::voracious_quantized_paired::<_, _, $quantizer>(&x, &y).unwrap();
+                        assert_eq!(test.estimate(), (33.5, 2.5));
+                        assert_eq!(test.p_value(), 0.027785782704095215);
+                        assert_eq!(test.effect_size(), 0.06944444444444445);
+                    }
+
+                    #[test]
+                    fn [<quantized_paired2_ $float _to_ $quantizer>]() {
+                        let x: Vec<$float> = vec![209.0, 200.0, 177.0, 169.0, 159.0, 169.0, 187.0, 198.0];
+                        let y: Vec<$float> = vec![151.0, 168.0, 147.0, 164.0, 166.0, 163.0, 176.0, 188.0];
+                        let test = WilcoxonWTest::quantized_paired::<_, _, $quantizer>(&x, &y).unwrap();
+                        assert_eq!(test.estimate(), (3.0, 33.0));
+                        assert_eq!(test.p_value(), 0.0390625);
+                        assert_eq!(test.effect_size(), 0.08333333333333333);
+                    }
+
+                    #[test]
+                    #[cfg(feature="voracious_radix_sort")]
+                    fn [<voracious_quantized_paired2_ $float _to_ $quantizer>]() {
+                        let x: Vec<$float> = vec![209.0, 200.0, 177.0, 169.0, 159.0, 169.0, 187.0, 198.0];
+                        let y: Vec<$float> = vec![151.0, 168.0, 147.0, 164.0, 166.0, 163.0, 176.0, 188.0];
+                        let test = WilcoxonWTest::voracious_quantized_paired::<_, _, $quantizer>(&x, &y).unwrap();
+                        assert_eq!(test.estimate(), (3.0, 33.0));
+                        assert_eq!(test.p_value(), 0.0390625);
+                        assert_eq!(test.effect_size(), 0.08333333333333333);
+                    }
+                }
+            )*
+        }
+    }
+
+    test_bounded_float!(f32, i8, i16);
+    test_bounded_float!(f64, i8, i16, i32);
 
     macro_rules! test_signed_integer {
         ($($integer:ty),*) => {
