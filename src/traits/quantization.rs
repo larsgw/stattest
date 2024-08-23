@@ -44,7 +44,7 @@ mod private {
 /// Sealed Trait for non-shifted quantization.
 pub trait Quantize<T> {
     /// Quantize values without shifting.
-    fn quantize(value: T, factor: T) -> Self;
+    fn quantize(value: T, reciprocal_factor: T) -> Self;
 }
 
 impl<T, Q> Quantize<T> for Q
@@ -65,24 +65,19 @@ where
     #[inline]
     #[allow(unsafe_code)]
     #[must_use]
-    fn quantize(value: T, factor: T) -> Q {
+    fn quantize(value: T, reciprocal_factor: T) -> Q {
         debug_assert_eq!(
             Q::UPPER_BOUND,
             -Q::LOWER_BOUND,
             "Quantization must be symmetric."
         );
-        debug_assert!(factor > T::ZERO, "Factor must be greater than zero.");
         debug_assert!(
-            value >= (-factor) && value <= factor,
-            "Value must be within the range of minimum and maximum values."
+            reciprocal_factor > T::ZERO,
+            "Factor must be greater than zero."
         );
 
         // If the value is zero, return the zero value of Q.
-        if value == T::ZERO {
-            return Q::ZERO;
-        }
-
-        let value = value / factor;
+        let value = value * reciprocal_factor;
         let value = value * T::from(Q::UPPER_BOUND);
 
         unsafe { value.to_primitive() }
@@ -100,15 +95,15 @@ mod tests {
                     #[test]
                     fn [<test_quantize_ $source _to_ $target>]() {
                         assert_eq!(<$target as Quantize<$source>>::quantize(-1.0, 1.0), $target::LOWER_BOUND);
-                        assert_eq!(<$target as Quantize<$source>>::quantize(-1.0, 5.0), $target::LOWER_BOUND / 5);
+                        assert_eq!(<$target as Quantize<$source>>::quantize(-1.0, 1.0/5.0), $target::LOWER_BOUND / 5);
                         assert_eq!(<$target as Quantize<$source>>::quantize(-0.5, 1.0), $target::LOWER_BOUND / 2);
-                        assert_eq!(<$target as Quantize<$source>>::quantize(-0.5, 5.0), $target::LOWER_BOUND / 10);
+                        assert_eq!(<$target as Quantize<$source>>::quantize(-0.5, 1.0/5.0), $target::LOWER_BOUND / 10);
                         assert_eq!(<$target as Quantize<$source>>::quantize(0.0, 1.0), 0);
-                        assert_eq!(<$target as Quantize<$source>>::quantize(0.0, 5.0), 0);
+                        assert_eq!(<$target as Quantize<$source>>::quantize(0.0, 1.0/5.0), 0);
                         assert_eq!(<$target as Quantize<$source>>::quantize(0.5, 1.0), $target::UPPER_BOUND / 2);
-                        assert_eq!(<$target as Quantize<$source>>::quantize(0.5, 5.0), $target::UPPER_BOUND / 10);
+                        assert_eq!(<$target as Quantize<$source>>::quantize(0.5, 1.0/5.0), $target::UPPER_BOUND / 10);
                         assert_eq!(<$target as Quantize<$source>>::quantize(1.0, 1.0), $target::UPPER_BOUND);
-                        assert_eq!(<$target as Quantize<$source>>::quantize(1.0, 5.0), $target::UPPER_BOUND / 5);
+                        assert_eq!(<$target as Quantize<$source>>::quantize(1.0, 1.0/5.0), $target::UPPER_BOUND / 5);
                     }
                 }
             )*

@@ -1,9 +1,10 @@
 use core::fmt::Debug;
-use std::ops::Sub;
+use core::ops::{Sub, Div};
 
 use crate::statistics::*;
 use crate::traits::abs::Abs;
 use crate::traits::zero::Zero;
+use crate::traits::one::One;
 use crate::traits::Bounded;
 use crate::{distribution::SignedRank, traits::quantization::Quantize};
 use statrs::distribution::ContinuousCDF;
@@ -131,7 +132,7 @@ impl WilcoxonWTest {
         J::IntoIter: ExactSizeIterator + Clone,
         I::Item: Copy + Debug + Sub<I::Item>,
         <I::Item as Sub<I::Item>>::Output:
-            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+            PartialOrd + Copy + Debug + Zero + One + Abs<Output = <I::Item as Sub<I::Item>>::Output> + Div<<I::Item as Sub<I::Item>>::Output, Output=<I::Item as Sub<I::Item>>::Output>,
         Q: Abs<Output = Q>
             + PartialOrd
             + Zero
@@ -161,7 +162,7 @@ impl WilcoxonWTest {
         J::IntoIter: ExactSizeIterator + Clone,
         I::Item: Copy + Debug + Sub<I::Item>,
         <I::Item as Sub<I::Item>>::Output:
-            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+            PartialOrd + Copy + Debug + Zero + One + Abs<Output = <I::Item as Sub<I::Item>>::Output> + Div<<I::Item as Sub<I::Item>>::Output, Output=<I::Item as Sub<I::Item>>::Output>,
         Q: Abs<Output = Q>
             + PartialOrd
             + Zero
@@ -207,7 +208,7 @@ impl WilcoxonWTest {
         J::IntoIter: ExactSizeIterator + Clone,
         I::Item: Copy + Debug + Sub<I::Item>,
         <I::Item as Sub<I::Item>>::Output:
-            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+            PartialOrd + Copy + Debug + Zero + One + Abs<Output = <I::Item as Sub<I::Item>>::Output> + Div<<I::Item as Sub<I::Item>>::Output, Output=<I::Item as Sub<I::Item>>::Output>,
         Q: Abs<Output = Q>
             + PartialOrd
             + Zero
@@ -234,7 +235,7 @@ impl WilcoxonWTest {
         J::IntoIter: ExactSizeIterator + Clone,
         I::Item: Copy + Debug + Sub<I::Item>,
         <I::Item as Sub<I::Item>>::Output:
-            PartialOrd + Copy + Debug + Zero + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+            PartialOrd + Copy + Debug + Zero + One + Abs<Output = <I::Item as Sub<I::Item>>::Output> + Div<<I::Item as Sub<I::Item>>::Output, Output=<I::Item as Sub<I::Item>>::Output>,
         Q: Abs<Output = Q>
             + PartialOrd
             + Zero
@@ -258,8 +259,9 @@ impl WilcoxonWTest {
                     }
                 },
             );
+            let reciprocal = <I::Item as Sub<I::Item>>::Output::ONE / max;
             // Then, we quantize the deltas
-            x.zip(y).map(|(a, b)| Q::quantize(a - b, max)).collect()
+            x.zip(y).map(|(a, b)| Q::quantize(a - b, reciprocal)).collect()
         })
     }
 

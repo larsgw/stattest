@@ -13,11 +13,7 @@ impl Abs for f32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0.0 {
-            -self
-        } else {
-            self
-        }
+        f32::abs(self)
     }
 }
 
@@ -26,37 +22,7 @@ impl Abs for f64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0.0 {
-            -self
-        } else {
-            self
-        }
-    }
-}
-
-impl Abs for &f32 {
-    type Output = f32;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0.0 {
-            -*self
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &f64 {
-    type Output = f64;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0.0 {
-            -*self
-        } else {
-            *self
-        }
+        f64::abs(self)
     }
 }
 
@@ -65,11 +31,7 @@ impl Abs for i8 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
+        i8::abs(self)
     }
 }
 
@@ -78,11 +40,7 @@ impl Abs for i16 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
+        i16::abs(self)
     }
 }
 
@@ -91,11 +49,7 @@ impl Abs for i32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
+        i32::abs(self)
     }
 }
 
@@ -104,114 +58,6 @@ impl Abs for i64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
-    }
-}
-
-impl Abs for i128 {
-    type Output = i128;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
-    }
-}
-
-impl Abs for isize {
-    type Output = isize;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if self < 0 {
-            -self
-        } else {
-            self
-        }
-    }
-}
-
-impl Abs for &i8 {
-    type Output = i8;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &i16 {
-    type Output = i16;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &i32 {
-    type Output = i32;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &i64 {
-    type Output = i64;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &i128 {
-    type Output = i128;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
-    }
-}
-
-impl Abs for &isize {
-    type Output = isize;
-
-    #[inline]
-    fn abs(self) -> Self::Output {
-        if *self < 0 {
-            -(*self)
-        } else {
-            *self
-        }
+        i64::abs(self)
     }
 }
