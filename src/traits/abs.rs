@@ -13,7 +13,11 @@ impl Abs for f32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0.0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -22,7 +26,11 @@ impl Abs for f64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0.0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -31,7 +39,11 @@ impl Abs for &f32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0.0 {
+            -*self
+        } else {
+            *self
+        }
     }
 }
 
@@ -40,7 +52,11 @@ impl Abs for &f64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0.0 {
+            -*self
+        } else {
+            *self
+        }
     }
 }
 
@@ -49,7 +65,11 @@ impl Abs for i8 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -58,7 +78,11 @@ impl Abs for i16 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -67,7 +91,11 @@ impl Abs for i32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -76,7 +104,11 @@ impl Abs for i64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -85,7 +117,11 @@ impl Abs for i128 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -94,7 +130,11 @@ impl Abs for isize {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if self < 0 {
+            -self
+        } else {
+            self
+        }
     }
 }
 
@@ -103,7 +143,11 @@ impl Abs for &i8 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
 
@@ -112,7 +156,11 @@ impl Abs for &i16 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
 
@@ -121,7 +169,11 @@ impl Abs for &i32 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
 
@@ -130,7 +182,11 @@ impl Abs for &i64 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
 
@@ -139,7 +195,11 @@ impl Abs for &i128 {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
 
@@ -148,6 +208,10 @@ impl Abs for &isize {
 
     #[inline]
     fn abs(self) -> Self::Output {
-        self.abs()
+        if *self < 0 {
+            -(*self)
+        } else {
+            *self
+        }
     }
 }
