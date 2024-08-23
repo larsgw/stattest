@@ -26,10 +26,6 @@ mod private {
             impl ToPrimitive<$target> for $source {
                 #[inline]
                 #[must_use]
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    reason = "Conversion from float to integer should only be used in the context of quantization."
-                )]
                 unsafe fn to_primitive(self) -> $target {
                     self as $target
                 }
