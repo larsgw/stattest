@@ -9,13 +9,13 @@ doctest = false
 
 [dependencies]
 statrs = { git = "https://github.com/larsgw/statrs", branch = "patch-1" }
-rand = "0.7.3"
 voracious_radix_sort = {version="1.2.0", optional=true}
+rand = "0.8.5"
+statrs = "0.17.1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 paste = "1.0.15"
-
 
 [[bench]]
 name = "wilcoxon"
