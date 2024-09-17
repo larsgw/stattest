@@ -8,5 +8,14 @@ edition = "2018"
 doctest = false
 
 [dependencies]
+voracious_radix_sort = {version="1.2.0", optional=true}
 rand = "0.8.5"
 statrs = "0.17.1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+paste = "1.0.15"
+
+[[bench]]
+name = "wilcoxon"
+harness = false
