@@ -9,6 +9,7 @@ where
     T: IntoIterator,
     T::Item: PartialOrd + Copy + Default,
 {
+    #[inline]
     fn ranks(self) -> (Vec<f64>, usize) {
         let mut observations: Vec<(usize, T::Item)> = self.into_iter().enumerate().collect();
         observations.sort_unstable_by(|(_, a), (_, b)| {
@@ -44,6 +45,7 @@ impl<I, F> ResolveTies<I, F>
 where
     I: Iterator,
 {
+    #[inline]
     pub(crate) fn new(iter: I, normalize: F) -> Self {
         ResolveTies {
             iter,
@@ -55,6 +57,7 @@ where
         }
     }
 
+    #[inline]
     pub(crate) fn tie_correction(&self) -> usize {
         self.tie_correction
     }
@@ -66,6 +69,7 @@ where
     I: Iterator,
     I::Item: Copy,
 {
+    #[inline]
     fn from(iter: J) -> Self {
         ResolveTies::new(iter.into_iter(), |x| x)
     }
@@ -79,6 +83,7 @@ where
 {
     type Item = (f64, I::Item);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|item| {
             let normalized_item = (self.normalize)(item);
@@ -98,6 +103,7 @@ where
         })
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (low, _high) = self.iter.size_hint();
         (low, None)
