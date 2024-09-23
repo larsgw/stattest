@@ -105,6 +105,7 @@ pub struct WilcoxonWTest {
 }
 
 impl WilcoxonWTest {
+    #[inline]
     pub fn paired<I, J>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
@@ -112,18 +113,54 @@ impl WilcoxonWTest {
         I::IntoIter: ExactSizeIterator,
         J::IntoIter: ExactSizeIterator,
         I::Item: Copy + Debug + Sub<I::Item>,
-        <I::Item as Sub<I::Item>>::Output:
-            Abs<Output = <I::Item as Sub<I::Item>>::Output> + PartialOrd + Zero + Copy + Debug,
+        <I::Item as Sub<I::Item>>::Output: PartialOrd
+            + Copy
+            + Debug
+            + Zero
+            + One
+            + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
     {
-        WilcoxonWTest::paired_with_sort(x, y, |x| {
-            x.sort_unstable_by(|a, b| {
+        WilcoxonWTest::weighted_paired(x, y, core::iter::repeat(()))
+    }
+
+    #[inline]
+    pub fn weighted_paired<I, J, O>(x: I, y: J, occurrences: O) -> statrs::Result<WilcoxonWTest>
+    where
+        I: IntoIterator,
+        O: IntoIterator,
+        J: IntoIterator<Item = I::Item>,
+        I::IntoIter: ExactSizeIterator,
+        J::IntoIter: ExactSizeIterator,
+        O::Item: Occurrence,
+        I::Item: Copy + Debug + Sub<I::Item>,
+        <I::Item as Sub<I::Item>>::Output: PartialOrd
+            + Copy
+            + Debug
+            + Zero
+            + One
+            + Abs<Output = <I::Item as Sub<I::Item>>::Output>,
+    {
+        Self::_weighted_paired(
+            x,
+            y,
+            occurrences,
+            |x: &mut [WeightedTuple<<I::Item as Sub<I::Item>>::Output, O::Item>]| {
+                x.sort_unstable_by(|a: &WeightedTuple<<I::Item as Sub<I::Item>>::Output, O::Item>, b: &WeightedTuple<<I::Item as Sub<I::Item>>::Output, O::Item>| {
                 a.abs()
                     .partial_cmp(&b.abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
-        })
+            },
+            |x, y, occurrences| {
+                x.zip(y)
+                    .zip(occurrences)
+                    .map(|((a, b), w)| WeightedTuple::from((a - b, w)))
+                    .collect()
+            },
+        )
     }
 
+    #[inline]
     pub fn quantized_paired<I, J, Q>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
@@ -146,45 +183,22 @@ impl WilcoxonWTest {
             + Quantize<<I::Item as Sub<I::Item>>::Output>
             + Bounded,
     {
-        WilcoxonWTest::quantized_paired_with_sort::<I, J, Q>(x, y, |x: &mut [Q]| {
-            x.sort_unstable_by(|a, b| {
-                a.abs()
-                    .partial_cmp(&b.abs())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-        })
-    }
-
-    pub fn quantized_paired_with_sort<I, J, Q>(
-        x: I,
-        y: J,
-        sort: fn(&mut [Q]),
-    ) -> statrs::Result<WilcoxonWTest>
-    where
-        I: IntoIterator,
-        J: IntoIterator<Item = I::Item>,
-        I::IntoIter: ExactSizeIterator + Clone,
-        J::IntoIter: ExactSizeIterator + Clone,
-        I::Item: Copy + Debug + Sub<I::Item>,
-        <I::Item as Sub<I::Item>>::Output: PartialOrd
-            + Copy
-            + Debug
-            + Zero
-            + One
-            + Abs<Output = <I::Item as Sub<I::Item>>::Output>
-            + Div<<I::Item as Sub<I::Item>>::Output, Output = <I::Item as Sub<I::Item>>::Output>,
-        Q: Abs<Output = Q>
-            + PartialOrd
-            + Zero
-            + Copy
-            + Debug
-            + Quantize<<I::Item as Sub<I::Item>>::Output>
-            + Bounded,
-    {
-        WilcoxonWTest::_quantized_paired(x, y, sort)
+        WilcoxonWTest::_quantized_weighted_paired(
+            x,
+            y,
+            core::iter::repeat(()),
+            |x: &mut [WeightedTuple<Q, ()>]| {
+                x.sort_unstable_by(|a, b| {
+                    a.abs()
+                        .partial_cmp(&b.abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+            },
+        )
     }
 
     #[cfg(feature = "voracious_radix_sort")]
+    #[inline]
     pub fn voracious_paired<I, J>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
@@ -210,6 +224,7 @@ impl WilcoxonWTest {
     }
 
     #[cfg(feature = "voracious_radix_sort")]
+    #[inline]
     pub fn voracious_quantized_paired<I, J, Q>(x: I, y: J) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
@@ -241,19 +256,27 @@ impl WilcoxonWTest {
         })
     }
 
+    #[inline]
     /// Run quantized Wilcoxon signed rank test on samples `x` and `y`.
-    fn _quantized_paired<I, J, Q>(x: I, y: J, sort: fn(&mut [Q])) -> statrs::Result<WilcoxonWTest>
+    fn _quantized_weighted_paired<I, J, O, Q>(
+        x: I,
+        y: J,
+        occurrences: O,
+        sort: fn(&mut [WeightedTuple<Q, O::Item>]),
+    ) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
+        O: IntoIterator,
         J: IntoIterator<Item = I::Item>,
         I::IntoIter: ExactSizeIterator + Clone,
         J::IntoIter: ExactSizeIterator + Clone,
         I::Item: Copy + Debug + Sub<I::Item>,
-        <I::Item as Sub<I::Item>>::Output: PartialOrd
-            + Copy
-            + Debug
+        <I::Item as Sub<I::Item>>::Output: Abs<Output = <I::Item as Sub<I::Item>>::Output>
+            + PartialOrd
             + Zero
             + One
+            + Copy
+            + Debug
             + Abs<Output = <I::Item as Sub<I::Item>>::Output>
             + Div<<I::Item as Sub<I::Item>>::Output, Output = <I::Item as Sub<I::Item>>::Output>,
         Q: Abs<Output = Q>
@@ -263,8 +286,9 @@ impl WilcoxonWTest {
             + Debug
             + Quantize<<I::Item as Sub<I::Item>>::Output>
             + Bounded,
+        O::Item: Occurrence,
     {
-        Self::_paired(x, y, sort, |x, y| {
+        Self::_weighted_paired(x, y, occurrences, sort, |x, y, occurrences| {
             assert_eq!(x.len(), y.len(), "Samples must have the same length");
             assert_ne!(x.len(), 0, "Samples must not be empty");
             // First, we compute the maximum delta between the two samples
@@ -282,25 +306,34 @@ impl WilcoxonWTest {
             let reciprocal = <I::Item as Sub<I::Item>>::Output::ONE / max;
             // Then, we quantize the deltas
             x.zip(y)
-                .map(|(a, b)| Q::quantize(a - b, reciprocal))
+                .zip(occurrences)
+                .map(|((a, b), w)| {
+                    WeightedTuple::<Q, O::Item>::from((Q::quantize(a - b, reciprocal), w))
+                })
                 .collect()
         })
     }
 
+    #[inline]
     /// Run Wilcoxon signed rank test on samples `x` and `y`.
-    fn _paired<I, J, Q>(
+    fn _weighted_paired<I, J, Q, O, S, D>(
         x: I,
         y: J,
-        sort: fn(&mut [Q]),
-        delta: fn(I::IntoIter, J::IntoIter) -> Vec<Q>,
+        occurrences: O,
+        sort: S,
+        delta: D,
     ) -> statrs::Result<WilcoxonWTest>
     where
         I: IntoIterator,
+        O: IntoIterator,
         J: IntoIterator<Item = I::Item>,
         I::IntoIter: ExactSizeIterator,
         J::IntoIter: ExactSizeIterator,
         I::Item: Copy + Debug + Sub<I::Item>,
+        S: Fn(&mut [WeightedTuple<Q, O::Item>]),
+        D: Fn(I::IntoIter, J::IntoIter, O::IntoIter) -> Vec<WeightedTuple<Q, O::Item>>,
         Q: Abs<Output = Q> + PartialOrd + Zero + Copy + Debug,
+        O::Item: Occurrence,
     {
         let x_iter = x.into_iter();
         let y_iter = y.into_iter();
@@ -309,22 +342,30 @@ impl WilcoxonWTest {
 
         assert_eq!(x_len, y_len, "Samples must have the same length");
 
-        let mut deltas: Vec<Q> = delta(x_iter, y_iter);
+        let mut deltas: Vec<WeightedTuple<Q, O::Item>> = delta(x_iter, y_iter, occurrences.into_iter());
 
         sort(&mut deltas);
 
-        let mut tie_solver = ResolveTies::new(deltas.iter().copied(), Q::abs);
+        let mut tie_solver =
+            ResolveTies::new(deltas.iter().copied(), WeightedTuple::<Q, O::Item>::abs);
 
         let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
-        for (rank, delta) in &mut tie_solver {
+        for (
+            rank,
+            WeightedTuple {
+                value: delta,
+                occurrences,
+            },
+        ) in &mut tie_solver
+        {
             if delta < Q::ZERO {
-                estimate.0 += rank;
+                estimate.0 += rank * occurrences.to_occurrence() as f64;
             } else if delta > Q::ZERO {
-                estimate.1 += rank;
+                estimate.1 += rank * occurrences.to_occurrence() as f64;
             } else {
-                zeroes += 1;
+                zeroes += occurrences.to_occurrence();
             }
         }
 
@@ -345,24 +386,6 @@ impl WilcoxonWTest {
             estimate,
             p_value,
         })
-    }
-
-    /// Run Wilcoxon signed rank test on samples `x` and `y`.
-    pub fn paired_with_sort<I, J>(
-        x: I,
-        y: J,
-        sort: fn(&mut [<I::Item as Sub<I::Item>>::Output]),
-    ) -> statrs::Result<WilcoxonWTest>
-    where
-        I: IntoIterator,
-        J: IntoIterator<Item = I::Item>,
-        I::IntoIter: ExactSizeIterator,
-        J::IntoIter: ExactSizeIterator,
-        I::Item: Copy + Debug + Sub<I::Item>,
-        <I::Item as Sub<I::Item>>::Output:
-            Abs<Output = <I::Item as Sub<I::Item>>::Output> + PartialOrd + Zero + Copy + Debug,
-    {
-        Self::_paired(x, y, sort, |x, y| x.zip(y).map(|(a, b)| a - b).collect())
     }
 }
 
@@ -500,6 +523,17 @@ mod tests {
                         let x: Vec<$integer> = vec![16, 12, 11, 22, 17, 10, 12, 12];
                         let y: Vec<$integer> = vec![17, 18, 13, 21, 18, 14, 13, 14];
                         let test = WilcoxonWTest::paired(&x, &y).unwrap();
+                        assert_eq!(test.estimate(), (33.5, 2.5));
+                        assert_eq!(test.p_value(), 0.027785782704095215);
+                        assert_eq!(test.effect_size(), 0.06944444444444445);
+                    }
+
+                    #[test]
+                    fn [<weighted_paired_ $integer>]() {
+                        let x: Vec<$integer> = vec![16, 12, 11, 22, 17, 10, 12, 12];
+                        let y: Vec<$integer> = vec![17, 18, 13, 21, 18, 14, 13, 14];
+                        let occurrences: Vec<usize> = vec![1, 1, 1, 1, 1, 1, 1, 1];
+                        let test = WilcoxonWTest::weighted_paired(&x, &y, &occurrences).unwrap();
                         assert_eq!(test.estimate(), (33.5, 2.5));
                         assert_eq!(test.p_value(), 0.027785782704095215);
                         assert_eq!(test.effect_size(), 0.06944444444444445);

@@ -1,3 +1,123 @@
+use core::cmp::Ordering;
+use core::convert::TryFrom;
+
+use crate::traits::abs::Abs;
+
+/// Trait defining how many times a value occurs.
+pub trait Occurrence: Copy {
+    /// Convert the weight to a floating point number.
+    fn to_occurrence(&self) -> usize;
+}
+
+impl Occurrence for () {
+    fn to_occurrence(&self) -> usize {
+        1
+    }
+}
+
+impl Occurrence for u8 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+impl Occurrence for &u8 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(**self)
+    }
+}
+
+impl Occurrence for u16 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+impl Occurrence for &u16 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(**self)
+    }
+}
+
+impl Occurrence for u32 {
+    fn to_occurrence(&self) -> usize {
+        usize::try_from(*self).unwrap()
+    }
+}
+
+impl Occurrence for &u32 {
+    fn to_occurrence(&self) -> usize {
+        usize::try_from(**self).unwrap()
+    }
+}
+
+impl Occurrence for usize {
+    fn to_occurrence(&self) -> usize {
+        *self
+    }
+}
+
+impl Occurrence for &usize {
+    fn to_occurrence(&self) -> usize {
+        **self
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+/// A tuple of a value and its occurrences.
+pub(crate) struct WeightedTuple<T, O> {
+    /// The value.
+    pub(crate) value: T,
+    /// The occurrences.
+    pub(crate) occurrences: O,
+}
+
+impl<T, W> From<(T, W)> for WeightedTuple<T, W> {
+    fn from((value, occurrences): (T, W)) -> Self {
+        WeightedTuple { value, occurrences }
+    }
+}
+
+impl<T, W> PartialEq for WeightedTuple<T, W>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl<T, W> PartialOrd for WeightedTuple<T, W>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl<T, W> Abs for WeightedTuple<T, W>
+where
+    T: Abs,
+{
+    type Output = WeightedTuple<T::Output, W>;
+    fn abs(self) -> Self::Output {
+        WeightedTuple {
+            value: self.value.abs(),
+            occurrences: self.occurrences,
+        }
+    }
+}
+
+impl<T: Copy, W> Occurrence for WeightedTuple<T, W>
+where
+    W: Occurrence,
+{
+    fn to_occurrence(&self) -> usize {
+        self.occurrences.to_occurrence()
+    }
+}
+
 /// For the ranking of groups of variables.
 pub trait Ranks<T> {
     /// Returns a vector of ranks.
@@ -16,7 +136,8 @@ where
             a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let mut resolved_ties = ResolveTies::from(observations.iter().map(|(_, value)| *value));
+        let mut resolved_ties =
+            ResolveTies::from(observations.iter().map(|(_, value)| WeightedTuple::from((*value, ()))));
         let mut ranks = vec![0.0; observations.len()];
 
         for ((rank, _), old_index) in
@@ -78,7 +199,7 @@ where
 impl<I, F> Iterator for ResolveTies<I, F>
 where
     I: Iterator + Clone,
-    I::Item: Copy + PartialEq,
+    I::Item: Copy + PartialEq + Occurrence,
     F: Fn(I::Item) -> I::Item,
 {
     type Item = (f64, I::Item);
@@ -89,16 +210,17 @@ where
             let normalized_item = (self.normalize)(item);
             if self.current_normalized_item != Some(normalized_item) {
                 self.current_normalized_item = Some(normalized_item);
-                let count = 1 + self
+                let count: usize = 1 + self
                     .iter
                     .clone()
                     .map(&self.normalize)
                     .take_while(|x| *x == normalized_item)
-                    .count();
+                    .map(|x| x.to_occurrence())
+                    .sum::<usize>();
                 self.resolved = (1.0 + count as f64) / 2.0 + self.index as f64;
+                self.index += count;
                 self.tie_correction += count.pow(3) - count;
             }
-            self.index += 1;
             (self.resolved, item)
         })
     }
