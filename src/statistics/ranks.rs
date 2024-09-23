@@ -213,13 +213,14 @@ where
             let normalized_item = (self.normalize)(item);
             if self.current_normalized_item != Some(normalized_item) {
                 self.current_normalized_item = Some(normalized_item);
-                let count: usize = 1 + self
-                    .iter
-                    .clone()
-                    .map(&self.normalize)
-                    .take_while(|x| *x == normalized_item)
-                    .map(|x| x.to_occurrence())
-                    .sum::<usize>();
+                let count: usize = normalized_item.to_occurrence()
+                    + self
+                        .iter
+                        .clone()
+                        .map(&self.normalize)
+                        .take_while(|x| *x == normalized_item)
+                        .map(|x| x.to_occurrence())
+                        .sum::<usize>();
                 self.resolved = (1.0 + count as f64) / 2.0 + self.index as f64;
                 self.index += count;
                 self.tie_correction += count.pow(3) - count;
