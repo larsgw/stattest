@@ -1,5 +1,122 @@
-use std::borrow::Borrow;
-use std::iter::FusedIterator;
+use core::cmp::Ordering;
+use core::convert::TryFrom;
+
+use crate::traits::abs::Abs;
+
+/// Trait defining how many times a value occurs.
+pub trait Occurrence: Copy {
+    /// Convert the weight to a floating point number.
+    fn to_occurrence(&self) -> usize;
+}
+
+impl Occurrence for () {
+    fn to_occurrence(&self) -> usize {
+        1
+    }
+}
+
+impl Occurrence for u8 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+impl Occurrence for &u8 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(**self)
+    }
+}
+
+impl Occurrence for u16 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+impl Occurrence for &u16 {
+    fn to_occurrence(&self) -> usize {
+        usize::from(**self)
+    }
+}
+
+impl Occurrence for u32 {
+    fn to_occurrence(&self) -> usize {
+        usize::try_from(*self).unwrap()
+    }
+}
+
+impl Occurrence for &u32 {
+    fn to_occurrence(&self) -> usize {
+        usize::try_from(**self).unwrap()
+    }
+}
+
+impl Occurrence for usize {
+    fn to_occurrence(&self) -> usize {
+        *self
+    }
+}
+
+impl Occurrence for &usize {
+    fn to_occurrence(&self) -> usize {
+        **self
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+/// A tuple of a value and its occurrences.
+pub(crate) struct WeightedTuple<T, O> {
+    /// The value.
+    pub(crate) value: T,
+    /// The occurrences.
+    pub(crate) occurrences: O,
+}
+
+impl<T, W> From<(T, W)> for WeightedTuple<T, W> {
+    fn from((value, occurrences): (T, W)) -> Self {
+        WeightedTuple { value, occurrences }
+    }
+}
+
+impl<T, W> PartialEq for WeightedTuple<T, W>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl<T, W> PartialOrd for WeightedTuple<T, W>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl<T, W> Abs for WeightedTuple<T, W>
+where
+    T: Abs,
+{
+    type Output = WeightedTuple<T::Output, W>;
+    fn abs(self) -> Self::Output {
+        WeightedTuple {
+            value: self.value.abs(),
+            occurrences: self.occurrences,
+        }
+    }
+}
+
+impl<T: Copy, W> Occurrence for WeightedTuple<T, W>
+where
+    W: Occurrence,
+{
+    fn to_occurrence(&self) -> usize {
+        self.occurrences.to_occurrence()
+    }
+}
 
 /// For the ranking of groups of variables.
 pub trait Ranks<T> {
@@ -10,20 +127,25 @@ pub trait Ranks<T> {
 impl<T> Ranks<f64> for T
 where
     T: IntoIterator,
-    T::Item: Borrow<f64>,
+    T::Item: PartialOrd + Copy + Default,
 {
+    #[inline]
     fn ranks(self) -> (Vec<f64>, usize) {
-        let mut observations: Vec<_> = self.into_iter().map(|x| *x.borrow()).enumerate().collect();
-        observations
-            .sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let mut observations: Vec<(usize, T::Item)> = self.into_iter().enumerate().collect();
+        observations.sort_unstable_by(|(_, a), (_, b)| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let (sorted_indices, sorted_values): (Vec<_>, Vec<_>) = observations.into_iter().unzip();
-        let groups = DedupWithCount::new(sorted_values.iter());
+        let mut resolved_ties = ResolveTies::from(
+            observations
+                .iter()
+                .map(|(_, value)| WeightedTuple::from((*value, ()))),
+        );
+        let mut ranks = vec![0.0; observations.len()];
 
-        let mut resolved_ties = ResolveTies::new(groups);
-        let mut ranks = vec![0.0; sorted_values.len()];
-
-        for (rank, old_index) in (&mut resolved_ties).zip(sorted_indices) {
+        for ((rank, _), old_index) in
+            (&mut resolved_ties).zip(observations.iter().map(|(index, _)| *index))
+        {
             ranks[old_index] = rank;
         }
 
@@ -31,125 +153,85 @@ where
     }
 }
 
-struct ResolveTies<I, T>
+pub(crate) struct ResolveTies<I, F>
 where
-    I: Iterator<Item = (usize, T)>,
+    I: Iterator,
 {
     iter: I,
     index: usize,
-    left: usize,
-    resolved: Option<f64>,
+    resolved: f64,
     tie_correction: usize,
+    current_normalized_item: Option<I::Item>,
+    normalize: F,
 }
 
-impl<I, T> ResolveTies<I, T>
+impl<I, F> ResolveTies<I, F>
 where
-    I: Iterator<Item = (usize, T)>,
+    I: Iterator,
 {
-    fn new(iter: I) -> Self {
+    #[inline]
+    pub(crate) fn new(iter: I, normalize: F) -> Self {
         ResolveTies {
             iter,
             index: 0,
-            left: 0,
-            resolved: None,
+            resolved: 0.0,
+            current_normalized_item: None,
             tie_correction: 0,
+            normalize,
         }
     }
 
-    fn tie_correction(&self) -> usize {
+    #[inline]
+    pub(crate) fn tie_correction(&self) -> usize {
         self.tie_correction
     }
 }
 
-impl<I, T> Iterator for ResolveTies<I, T>
+impl<I, J> From<J> for ResolveTies<I, fn(I::Item) -> I::Item>
 where
-    I: Iterator<Item = (usize, T)>,
+    J: IntoIterator<IntoIter = I>,
+    I: Iterator,
+    I::Item: Copy,
 {
-    type Item = f64;
+    #[inline]
+    fn from(iter: J) -> Self {
+        ResolveTies::new(iter.into_iter(), |x| x)
+    }
+}
 
-    fn next(&mut self) -> Option<f64> {
-        if self.left > 0 {
-            self.left -= 1;
-            self.index += 1;
-            self.resolved
-        } else {
-            match self.iter.next() {
-                Some((count, _)) => {
-                    self.resolved = Some(((1.0 + count as f64) / 2.0) + self.index as f64);
-                    self.left = count - 1;
-                    self.index += 1;
-                    self.tie_correction += count.pow(3) - count;
-                    self.resolved
-                }
-                None => None,
+impl<I, F> Iterator for ResolveTies<I, F>
+where
+    I: Iterator + Clone,
+    I::Item: Copy + PartialEq + Occurrence,
+    F: Fn(I::Item) -> I::Item,
+{
+    type Item = (f64, I::Item);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|item| {
+            let normalized_item = (self.normalize)(item);
+            if self.current_normalized_item != Some(normalized_item) {
+                self.current_normalized_item = Some(normalized_item);
+                let count: usize = normalized_item.to_occurrence()
+                    + self
+                        .iter
+                        .clone()
+                        .map(&self.normalize)
+                        .take_while(|x| *x == normalized_item)
+                        .map(|x| x.to_occurrence())
+                        .sum::<usize>();
+                self.resolved = (1.0 + count as f64) / 2.0 + self.index as f64;
+                self.index += count;
+                self.tie_correction += count.pow(3) - count;
             }
-        }
+            (self.resolved, item)
+        })
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (low, _high) = self.iter.size_hint();
         (low, None)
     }
 }
-
-impl<I, T> FusedIterator for ResolveTies<I, T> where I: Iterator<Item = (usize, T)> {}
-
-struct DedupWithCount<I>
-where
-    I: Iterator,
-    I::Item: PartialEq,
-{
-    iter: I,
-    peek: Option<I::Item>,
-}
-
-impl<I> DedupWithCount<I>
-where
-    I: Iterator,
-    I::Item: PartialEq,
-{
-    fn new(mut iter: I) -> Self {
-        DedupWithCount {
-            peek: iter.next(),
-            iter,
-        }
-    }
-}
-
-impl<I> Iterator for DedupWithCount<I>
-where
-    I: Iterator,
-    I::Item: PartialEq,
-{
-    type Item = (usize, I::Item);
-
-    fn next(&mut self) -> Option<(usize, I::Item)> {
-        let mut count = 1;
-        loop {
-            if self.peek.is_some() {
-                let next = self.iter.next();
-
-                if self.peek == next {
-                    count += 1;
-                    continue;
-                }
-
-                let value = match next {
-                    Some(value) => self.peek.replace(value).unwrap(),
-                    None => self.peek.take().unwrap(),
-                };
-
-                break Some((count, value));
-            } else {
-                break None;
-            }
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (low, high) = self.iter.size_hint();
-        (if low == 0 { 0 } else { 1 }, high)
-    }
-}
-
-impl<I: Iterator> FusedIterator for DedupWithCount<I> where I::Item: PartialEq {}

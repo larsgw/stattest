@@ -15,7 +15,7 @@ pub struct MannWhitneyUTest {
 impl MannWhitneyUTest {
     /// Run Mann-Whitney U test/Wilcoxon rank-sum test on samples `x` and `y`.
     pub fn independent(x: &[f64], y: &[f64]) -> statrs::Result<MannWhitneyUTest> {
-        let (ranks, tie_correction) = x.iter().chain(y).ranks();
+        let (ranks, tie_correction) = x.iter().chain(y).copied().ranks();
         let n_x = x.n();
         let n_y = y.n();
         let n_xy = n_x * n_y;
