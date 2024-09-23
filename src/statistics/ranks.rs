@@ -136,8 +136,11 @@ where
             a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let mut resolved_ties =
-            ResolveTies::from(observations.iter().map(|(_, value)| WeightedTuple::from((*value, ()))));
+        let mut resolved_ties = ResolveTies::from(
+            observations
+                .iter()
+                .map(|(_, value)| WeightedTuple::from((*value, ()))),
+        );
         let mut ranks = vec![0.0; observations.len()];
 
         for ((rank, _), old_index) in

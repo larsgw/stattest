@@ -342,7 +342,8 @@ impl WilcoxonWTest {
 
         assert_eq!(x_len, y_len, "Samples must have the same length");
 
-        let mut deltas: Vec<WeightedTuple<Q, O::Item>> = delta(x_iter, y_iter, occurrences.into_iter());
+        let mut deltas: Vec<WeightedTuple<Q, O::Item>> =
+            delta(x_iter, y_iter, occurrences.into_iter());
 
         sort(&mut deltas);
 
