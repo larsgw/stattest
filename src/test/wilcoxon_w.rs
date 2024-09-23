@@ -369,6 +369,8 @@ impl WilcoxonWTest {
         let mut estimate = (0.0, 0.0);
         let mut zeroes = 0;
 
+        let mut total_number_of_samples = 0;
+
         for (
             rank,
             WeightedTuple {
@@ -377,6 +379,7 @@ impl WilcoxonWTest {
             },
         ) in &mut tie_solver
         {
+            total_number_of_samples += occurrences.to_occurrence();
             if delta < Q::ZERO {
                 estimate.0 += rank * occurrences.to_occurrence() as f64;
             } else if delta > Q::ZERO {
@@ -391,10 +394,10 @@ impl WilcoxonWTest {
         } else {
             estimate.1
         };
-        let distribution = SignedRank::new(x_len, zeroes, tie_solver.tie_correction())?;
+        let distribution = SignedRank::new(total_number_of_samples, zeroes, tie_solver.tie_correction())?;
         let p_value = distribution.cdf(estimate_small);
 
-        let n = x_len as f64;
+        let n = total_number_of_samples as f64;
         let rank_sum = n * (n + 1.0) / 2.0;
         let effect_size = estimate_small / rank_sum;
 
