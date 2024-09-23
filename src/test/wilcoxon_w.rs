@@ -215,12 +215,23 @@ impl WilcoxonWTest {
             + Abs,
         AbsWrapper<<I::Item as Sub<I::Item>>::Output>: Radixable<<I::Item as Sub<I::Item>>::Output>,
     {
-        WilcoxonWTest::paired_with_sort(x, y, |x: &mut [<I::Item as Sub<I::Item>>::Output]| {
-            // Since the AbsWrapper is a transparent wrapper, we can just cast the slice to a slice of AbsWrapper
-            let x: &mut [AbsWrapper<<I::Item as Sub<I::Item>>::Output>] =
-                unsafe { std::mem::transmute(x) };
-            x.voracious_sort();
-        })
+        Self::_weighted_paired(
+            x,
+            y,
+            core::iter::repeat(()),
+            |x: &mut [WeightedTuple<<I::Item as Sub<I::Item>>::Output, ()>]| {
+                // Since the AbsWrapper is a transparent wrapper, we can just cast the slice to a slice of AbsWrapper
+                let x: &mut [AbsWrapper<<I::Item as Sub<I::Item>>::Output>] =
+                    unsafe { std::mem::transmute(x) };
+                x.voracious_sort();
+            },
+            |x, y, occurrences| {
+                x.zip(y)
+                    .zip(occurrences)
+                    .map(|((a, b), w)| WeightedTuple::from((a - b, w)))
+                    .collect()
+            },
+        )
     }
 
     #[cfg(feature = "voracious_radix_sort")]
@@ -249,11 +260,16 @@ impl WilcoxonWTest {
             + Bounded,
         AbsWrapper<Q>: Radixable<Q>,
     {
-        WilcoxonWTest::quantized_paired_with_sort::<I, J, Q>(x, y, |x: &mut [Q]| {
-            // Since the AbsWrapper is a transparent wrapper, we can just cast the slice to a slice of AbsWrapper
-            let x: &mut [AbsWrapper<Q>] = unsafe { std::mem::transmute(x) };
-            x.voracious_sort();
-        })
+        WilcoxonWTest::_quantized_weighted_paired::<I, J, _, Q>(
+            x,
+            y,
+            core::iter::repeat(()),
+            |x: &mut [WeightedTuple<Q, ()>]| {
+                // Since the AbsWrapper is a transparent wrapper, we can just cast the slice to a slice of AbsWrapper
+                let x: &mut [AbsWrapper<Q>] = unsafe { std::mem::transmute(x) };
+                x.voracious_sort();
+            },
+        )
     }
 
     #[inline]
